@@ -1,7 +1,14 @@
 /**
+ * @OnlyCurrentDoc
+ *
  * ============================================================================
  * SPLITSHEET — GOOGLE SHEETS BACKEND (Google Apps Script)
  * ============================================================================
+ *
+ * NOTE ON GOOGLE ADVANCED PROTECTION:
+ * The `@OnlyCurrentDoc` annotation above restricts this script's OAuth scope
+ * strictly to `https://www.googleapis.com/auth/spreadsheets.currentonly`
+ * (only this single spreadsheet) instead of full account-wide Drive/Sheets access.
  *
  * HOW TO DEPLOY:
  * 1. Create a new Google Sheet in your Google Drive (and share it with your partner).
@@ -112,10 +119,11 @@ function setupSheet() {
 /**
  * Reads all rows from the Transactions sheet.
  */
-function readAllTransactions(txSheet) {
+function readAllTransactions(txSheet, ss) {
   const lastRow = txSheet.getLastRow();
   if (lastRow <= 1) return [];
 
+  const tz = (ss && ss.getSpreadsheetTimeZone && ss.getSpreadsheetTimeZone()) || 'UTC';
   const data = txSheet.getRange(2, 1, lastRow - 1, HEADERS.length).getValues();
   const expenses = [];
 
@@ -126,7 +134,7 @@ function readAllTransactions(txSheet) {
 
     let dateStr = row[1];
     if (dateStr instanceof Date) {
-      dateStr = Utilities.formatDate(dateStr, Session.getScriptTimeZone() || 'UTC', 'yyyy-MM-dd');
+      dateStr = Utilities.formatDate(dateStr, tz, 'yyyy-MM-dd');
     } else {
       dateStr = String(dateStr || '').slice(0, 10);
     }
@@ -266,7 +274,7 @@ function doGet(e) {
     }
 
     const { txSheet, cfgSheet, ss } = setupSheet();
-    const expenses = readAllTransactions(txSheet);
+    const expenses = readAllTransactions(txSheet, ss);
     const config = syncConfig(cfgSheet, null);
 
     return jsonResponse({
@@ -303,7 +311,7 @@ function doPost(e) {
     const config = syncConfig(cfgSheet, body.config || null);
     SpreadsheetApp.flush();
 
-    const expenses = readAllTransactions(txSheet);
+    const expenses = readAllTransactions(txSheet, ss);
 
     return jsonResponse({
       ok: true,
