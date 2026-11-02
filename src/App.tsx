@@ -7,7 +7,7 @@ import {
   Settings,
   Table2
 } from 'lucide-react';
-import { AppSettings, Expense, ExpenseFilters, PartnerId } from './types';
+import { AccountGroup, AppSettings, Expense, ExpenseFilters, PartnerId } from './types';
 import { DEFAULT_FILTERS } from './lib/constants';
 import {
   calculateSummary,
@@ -22,10 +22,12 @@ import {
   loadExpensesAsync,
   loadExpensesSync,
   loadSettings,
+  normalizeAccounts,
   saveExpenses,
   saveSettings,
   syncWithGoogleSheet
 } from './lib/storage';
+import { AccountsBar } from './components/AccountsBar';
 import { BalanceHeader } from './components/BalanceHeader';
 import { SearchFilterBar } from './components/SearchFilterBar';
 import { ExpenseList } from './components/ExpenseList';
@@ -68,9 +70,11 @@ export const App: React.FC = () => {
     const invite = consumePartnerInviteFromHash();
     if (invite) {
       setSettings((prev) => {
+        const accounts = normalizeAccounts(invite.accounts || prev.accounts);
         const merged: AppSettings = {
           ...prev,
-          ...invite
+          ...invite,
+          accounts
         };
         saveSettings(merged);
         return merged;
@@ -117,9 +121,20 @@ export const App: React.FC = () => {
       await saveExpenses(result.expenses);
 
       setSettings((prev) => {
+        const nextAccounts = normalizeAccounts(
+          result.remoteConfig?.accounts || prev.accounts
+        );
+        const nextActiveId =
+          prev.activeAccountId === 'all' ||
+          nextAccounts.some((a) => a.id === prev.activeAccountId)
+            ? prev.activeAccountId
+            : nextAccounts[0].id;
+
         const next: AppSettings = {
           ...prev,
           ...(result.remoteConfig || {}),
+          accounts: nextAccounts,
+          activeAccountId: nextActiveId,
           sheetUrl: result.sheetUrl || prev.sheetUrl,
           sheetName: result.sheetName || prev.sheetName,
           lastSyncedAt: Date.now()
@@ -145,20 +160,33 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('online', onOnline);
   }, [settings.scriptUrl]);
 
-  // Derived states
-  const activeExpenses = useMemo(
-    () => expenses.filter((e) => !e.isDeleted),
-    [expenses]
-  );
+  // Scope expenses by the currently selected Account (or 'all')
+  const accountScopedExpenses = useMemo(() => {
+    const nonDeleted = expenses.filter((e) => !e.isDeleted);
+    if (settings.activeAccountId === 'all') {
+      return nonDeleted;
+    }
+    return nonDeleted.filter(
+      (e) => (e.accountId || 'everyday') === settings.activeAccountId
+    );
+  }, [expenses, settings.activeAccountId]);
+
+  const activeAccountLabel = useMemo(() => {
+    if (settings.activeAccountId === 'all') {
+      return '✨ All Accounts';
+    }
+    const found = settings.accounts.find((a) => a.id === settings.activeAccountId);
+    return found ? `${found.emoji} ${found.name}` : '🏠 Everyday';
+  }, [settings.accounts, settings.activeAccountId]);
 
   const overallSummary = useMemo(
-    () => calculateSummary(activeExpenses),
-    [activeExpenses]
+    () => calculateSummary(accountScopedExpenses),
+    [accountScopedExpenses]
   );
 
   const filteredExpenses = useMemo(
-    () => filterAndSortExpenses(activeExpenses, filters, settings),
-    [activeExpenses, filters, settings]
+    () => filterAndSortExpenses(accountScopedExpenses, filters, settings),
+    [accountScopedExpenses, filters, settings]
   );
 
   const filteredSummary = useMemo(
@@ -168,11 +196,11 @@ export const App: React.FC = () => {
 
   const availableCurrencies = useMemo(() => {
     const set = new Set<string>([settings.baseCurrency]);
-    for (const e of activeExpenses) {
+    for (const e of accountScopedExpenses) {
       if (e.currency) set.add(e.currency.toUpperCase());
     }
     return Array.from(set);
-  }, [activeExpenses, settings.baseCurrency]);
+  }, [accountScopedExpenses, settings.baseCurrency]);
 
   const dirtyCount = useMemo(
     () => expenses.filter((e) => e.dirty).length,
@@ -180,6 +208,73 @@ export const App: React.FC = () => {
   );
 
   // Handlers
+  const handleSelectAccount = (accountId: string) => {
+    const next: AppSettings = { ...settings, activeAccountId: accountId };
+    setSettings(next);
+    saveSettings(next);
+  };
+
+  const handleUpdateAccounts = async (
+    nextAccounts: AccountGroup[],
+    nextActiveId?: string,
+    renamedAccount?: { id: string; name: string }
+  ) => {
+    const validIds = new Set(nextAccounts.map((a) => a.id));
+    const fallbackAcc = nextAccounts[0];
+    const now = Date.now();
+
+    let updatedExpenses = expenses;
+    let expensesChanged = false;
+
+    if (renamedAccount) {
+      updatedExpenses = expenses.map((e) => {
+        if ((e.accountId || 'everyday') === renamedAccount.id) {
+          expensesChanged = true;
+          return {
+            ...e,
+            accountName: renamedAccount.name,
+            updatedAt: now,
+            dirty: true
+          };
+        }
+        return e;
+      });
+    } else {
+      // Check if an account was deleted and reassign orphaned expenses to fallbackAcc
+      updatedExpenses = expenses.map((e) => {
+        const accId = e.accountId || 'everyday';
+        if (!validIds.has(accId)) {
+          expensesChanged = true;
+          return {
+            ...e,
+            accountId: fallbackAcc.id,
+            accountName: fallbackAcc.name,
+            updatedAt: now,
+            dirty: true
+          };
+        }
+        return e;
+      });
+    }
+
+    if (expensesChanged) {
+      setExpenses(updatedExpenses);
+      await saveExpenses(updatedExpenses);
+    }
+
+    const nextSettings: AppSettings = {
+      ...settings,
+      accounts: nextAccounts,
+      activeAccountId: nextActiveId || settings.activeAccountId
+    };
+    setSettings(nextSettings);
+    saveSettings(nextSettings);
+
+    if (nextSettings.scriptUrl.trim()) {
+      triggerSync(updatedExpenses, nextSettings, false);
+    }
+  };
+
   const handleSaveExpense = async (expense: Expense) => {
     const exists = expenses.some((e) => e.id === expense.id);
     const next = exists
@@ -225,7 +320,6 @@ export const App: React.FC = () => {
     const abs = round2(Math.abs(netBalanceA));
     if (abs < 0.01) return;
 
-    // netBalanceA > 0 means User B owes User A -> so User B pays User A
     const payer: PartnerId = netBalanceA > 0 ? 'userB' : 'userA';
     setEditingExpense(null);
     setPresetSettlement({ paidBy: payer, amount: abs });
@@ -262,6 +356,13 @@ export const App: React.FC = () => {
       return d.toISOString().slice(0, 10);
     };
 
+    const targetAccId =
+      settings.activeAccountId !== 'all'
+        ? settings.activeAccountId
+        : settings.accounts[0]?.id || 'everyday';
+    const targetAccName =
+      settings.accounts.find((a) => a.id === targetAccId)?.name || 'Everyday';
+
     const cur = settings.baseCurrency;
     const demo: Expense[] = [
       {
@@ -279,6 +380,8 @@ export const App: React.FC = () => {
         notes: 'Fruits, veggies, coffee, olive oil',
         isDeleted: false,
         updatedAt: now - 1000,
+        accountId: targetAccId,
+        accountName: targetAccName,
         dirty: true
       },
       {
@@ -296,6 +399,8 @@ export const App: React.FC = () => {
         notes: 'Pad Thai + drinks',
         isDeleted: false,
         updatedAt: now - 2000,
+        accountId: targetAccId,
+        accountName: targetAccName,
         dirty: true
       },
       {
@@ -313,6 +418,8 @@ export const App: React.FC = () => {
         notes: 'Monthly utilities',
         isDeleted: false,
         updatedAt: now - 3000,
+        accountId: targetAccId,
+        accountName: targetAccName,
         dirty: true
       },
       {
@@ -330,6 +437,8 @@ export const App: React.FC = () => {
         notes: `Picked up for ${settings.userBName}`,
         isDeleted: false,
         updatedAt: now - 4000,
+        accountId: targetAccId,
+        accountName: targetAccName,
         dirty: true
       },
       {
@@ -347,6 +456,8 @@ export const App: React.FC = () => {
         notes: 'Coastal day trip',
         isDeleted: false,
         updatedAt: now - 5000,
+        accountId: targetAccId,
+        accountName: targetAccName,
         dirty: true
       }
     ];
@@ -357,13 +468,13 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 pb-24">
+    <div className="min-h-screen bg-[#13111c] text-slate-100 pb-24">
       {/* Top Navbar */}
-      <header className="sticky top-0 z-30 bg-slate-950/85 backdrop-blur-md border-b border-slate-900">
+      <header className="sticky top-0 z-30 bg-[#13111c]/85 backdrop-blur-md border-b border-[#252236]">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-emerald-600 flex items-center justify-center shadow-md shadow-teal-500/20">
-              <Table2 className="w-5 h-5 text-slate-950 stroke-[2.2]" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#c4b5fd] to-[#fbcfe8] flex items-center justify-center shadow-md shadow-[#c4b5fd]/15">
+              <Table2 className="w-5 h-5 text-[#181622] stroke-[2.2]" />
             </div>
             <div>
               <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-white leading-none">
@@ -376,13 +487,13 @@ export const App: React.FC = () => {
           </div>
 
           {/* Center Tabs */}
-          <div className="inline-flex rounded-xl bg-slate-900 p-1 border border-slate-800">
+          <div className="inline-flex rounded-xl bg-[#1e1b2b] p-1 border border-[#332f4a]">
             <button
               type="button"
               onClick={() => setActiveTab('expenses')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                 activeTab === 'expenses'
-                  ? 'bg-teal-500 text-slate-950 shadow-sm'
+                  ? 'bg-[#c4b5fd] text-[#181622] shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -394,7 +505,7 @@ export const App: React.FC = () => {
               onClick={() => setActiveTab('analytics')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                 activeTab === 'analytics'
-                  ? 'bg-teal-500 text-slate-950 shadow-sm'
+                  ? 'bg-[#c4b5fd] text-[#181622] shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -408,16 +519,16 @@ export const App: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsImportModalOpen(true)}
-              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition cursor-pointer"
+              className="p-2 rounded-xl bg-[#1e1b2b] hover:bg-[#2a263d] text-slate-300 border border-[#332f4a] transition cursor-pointer"
               title="Tricount / CSV Import & Export"
               aria-label="Import or Export CSV"
             >
-              <FileSpreadsheet className="w-4 h-4 text-teal-400" />
+              <FileSpreadsheet className="w-4 h-4 text-[#c4b5fd]" />
             </button>
             <button
               type="button"
               onClick={() => setIsSettingsModalOpen(true)}
-              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition cursor-pointer"
+              className="p-2 rounded-xl bg-[#1e1b2b] hover:bg-[#2a263d] text-slate-300 border border-[#332f4a] transition cursor-pointer"
               title="Couple & Google Sheet Settings"
               aria-label="Settings"
             >
@@ -428,17 +539,26 @@ export const App: React.FC = () => {
       </header>
 
       {/* Main Content Container */}
-      <main className="max-w-3xl mx-auto px-4 pt-4 space-y-5">
+      <main className="max-w-3xl mx-auto px-4 pt-4 space-y-4">
         {inviteBanner && (
-          <div className="p-3.5 rounded-2xl bg-teal-500/15 border border-teal-500/40 text-xs sm:text-sm font-medium text-teal-200">
+          <div className="p-3.5 rounded-2xl bg-[#c4b5fd]/15 border border-[#c4b5fd]/40 text-xs sm:text-sm font-medium text-[#ddd6fe]">
             {inviteBanner}
           </div>
         )}
+
+        {/* Tricount-Style Accounts / Groups Switcher Bar */}
+        <AccountsBar
+          settings={settings}
+          expenses={expenses}
+          onSelectAccount={handleSelectAccount}
+          onUpdateAccounts={handleUpdateAccounts}
+        />
 
         {/* Top Balance & Google Sheet Sync Card */}
         <BalanceHeader
           summary={overallSummary}
           settings={settings}
+          activeAccountLabel={activeAccountLabel}
           dirtyCount={dirtyCount}
           isSyncing={isSyncing}
           syncError={syncError}
@@ -458,7 +578,7 @@ export const App: React.FC = () => {
               filters={filters}
               settings={settings}
               filteredSummary={filteredSummary}
-              totalCount={activeExpenses.length}
+              totalCount={accountScopedExpenses.length}
               filteredCount={filteredExpenses.length}
               availableCurrencies={availableCurrencies}
               onChange={setFilters}
@@ -484,7 +604,7 @@ export const App: React.FC = () => {
           </>
         ) : (
           <AnalyticsView
-            expenses={activeExpenses}
+            expenses={accountScopedExpenses}
             settings={settings}
             onSelectCategoryFilter={(cat) => {
               setFilters({ ...filters, categories: [cat] });
@@ -502,7 +622,7 @@ export const App: React.FC = () => {
           setPresetSettlement(null);
           setIsExpenseModalOpen(true);
         }}
-        className="fixed bottom-6 right-6 z-40 sm:hidden w-14 h-14 rounded-2xl bg-teal-500 hover:bg-teal-400 text-slate-950 shadow-xl shadow-teal-500/30 flex items-center justify-center transition cursor-pointer"
+        className="fixed bottom-6 right-6 z-40 sm:hidden w-14 h-14 rounded-2xl bg-[#c4b5fd] hover:bg-[#ddd6fe] text-[#181622] shadow-xl shadow-[#c4b5fd]/30 flex items-center justify-center transition cursor-pointer"
         aria-label="Add Expense"
       >
         <Plus className="w-7 h-7 stroke-[2.5]" />

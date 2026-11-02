@@ -60,7 +60,6 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
     onChange({ ...DEFAULT_FILTERS });
   };
 
-  // Count active non-search filters for badge
   const activeDrawerCount =
     (filters.categories.length > 0 ? 1 : 0) +
     (filters.paidBy !== 'all' ? 1 : 0) +
@@ -79,13 +78,13 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
             value={filters.search}
             onChange={(e) => onChange({ ...filters, search: e.target.value })}
             placeholder={`Search title, notes, category, ${settings.userAName}/${settings.userBName}…`}
-            className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-teal-500 transition"
+            className="w-full pl-10 pr-9 py-2.5 rounded-xl bg-[#1e1b2b] border border-[#332f4a] text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-[#c4b5fd] transition"
           />
           {filters.search && (
             <button
               type="button"
               onClick={() => onChange({ ...filters, search: '' })}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#2a263d]"
               aria-label="Clear search"
             >
               <X className="w-3.5 h-3.5" />
@@ -98,14 +97,14 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
           onClick={() => setShowAdvanced((v) => !v)}
           className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-medium transition cursor-pointer ${
             showAdvanced || activeDrawerCount > 0
-              ? 'bg-teal-500/15 text-teal-300 border-teal-500/40'
-              : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
+              ? 'bg-[#c4b5fd]/15 text-[#ddd6fe] border-[#c4b5fd]/45'
+              : 'bg-[#1e1b2b] text-slate-300 border-[#332f4a] hover:bg-[#282438]'
           }`}
         >
           <SlidersHorizontal className="w-4 h-4" />
           <span>Filters</span>
           {activeDrawerCount > 0 && (
-            <span className="inline-flex items-center justify-center w-5 h-5 text-[11px] font-bold rounded-full bg-teal-500 text-slate-950">
+            <span className="inline-flex items-center justify-center w-5 h-5 text-[11px] font-bold rounded-full bg-[#c4b5fd] text-[#181622]">
               {activeDrawerCount}
             </span>
           )}
@@ -117,7 +116,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
             value={filters.sortBy}
             onChange={(e) => onChange({ ...filters, sortBy: e.target.value as SortOption })}
             aria-label="Sort expenses"
-            className="pl-8 pr-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-teal-500 cursor-pointer"
+            className="pl-8 pr-3 py-2.5 rounded-xl bg-[#1e1b2b] border border-[#332f4a] text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-[#c4b5fd] cursor-pointer"
           >
             <option value="date-desc">Newest first</option>
             <option value="date-asc">Oldest first</option>
@@ -139,8 +138,8 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
               onClick={() => onChange({ ...filters, datePreset: preset.id })}
               className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap border transition cursor-pointer ${
                 active
-                  ? 'bg-teal-500 text-slate-950 border-teal-400 font-semibold'
-                  : 'bg-slate-900/90 text-slate-400 border-slate-800 hover:text-slate-200 hover:border-slate-700'
+                  ? 'bg-[#c4b5fd] text-[#181622] border-[#ddd6fe] font-semibold'
+                  : 'bg-[#1e1b2b]/90 text-slate-400 border-[#332f4a] hover:text-slate-200 hover:border-[#494369]'
               }`}
             >
               {preset.label}
@@ -151,7 +150,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
 
       {/* Custom Date Inputs if 'custom' preset is chosen */}
       {filters.datePreset === 'custom' && (
-        <div className="grid grid-cols-2 gap-2.5 p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+        <div className="grid grid-cols-2 gap-2.5 p-3 rounded-xl bg-[#1e1b2b] border border-[#332f4a]">
           <div>
             <label className="block text-[11px] font-medium text-slate-400 mb-1">
               From Date
@@ -160,7 +159,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
               type="date"
               value={filters.dateFrom}
               onChange={(e) => onChange({ ...filters, dateFrom: e.target.value })}
-              className="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+              className="w-full px-3 py-1.5 rounded-lg bg-[#151320] border border-[#332f4a] text-xs text-slate-200 focus:outline-none focus:border-[#c4b5fd]"
             />
           </div>
           <div>
@@ -171,7 +170,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
               type="date"
               value={filters.dateTo}
               onChange={(e) => onChange({ ...filters, dateTo: e.target.value })}
-              className="w-full px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+              className="w-full px-3 py-1.5 rounded-lg bg-[#151320] border border-[#332f4a] text-xs text-slate-200 focus:outline-none focus:border-[#c4b5fd]"
             />
           </div>
         </div>
@@ -179,7 +178,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
 
       {/* Expandable Advanced Multi-Facet Filters */}
       {showAdvanced && (
-        <div className="rounded-2xl bg-slate-900/95 border border-slate-800 p-4 space-y-4 shadow-lg">
+        <div className="rounded-2xl bg-[#1e1b2b] border border-[#332f4a] p-4 space-y-4 shadow-lg">
           {/* Categories Multi-Select */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -190,7 +189,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
                 <button
                   type="button"
                   onClick={() => onChange({ ...filters, categories: [] })}
-                  className="text-xs text-teal-400 hover:underline"
+                  className="text-xs text-[#c4b5fd] hover:underline"
                 >
                   Clear categories
                 </button>
@@ -206,8 +205,8 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
                     onClick={() => toggleCategory(cat.id)}
                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border transition cursor-pointer ${
                       selected
-                        ? 'bg-teal-500/20 text-teal-200 border-teal-400'
-                        : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
+                        ? 'bg-[#c4b5fd]/20 text-[#ddd6fe] border-[#c4b5fd]'
+                        : 'bg-[#151320] text-slate-300 border-[#332f4a] hover:border-[#494369]'
                     }`}
                   >
                     <span>{cat.emoji}</span>
@@ -224,7 +223,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
                 Who Paid
               </label>
-              <div className="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+              <div className="grid grid-cols-3 gap-1 bg-[#151320] p-1 rounded-xl border border-[#332f4a]">
                 {(
                   [
                     { id: 'all', label: 'Anyone' },
@@ -238,7 +237,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
                     onClick={() => onChange({ ...filters, paidBy: opt.id })}
                     className={`py-1.5 px-2 rounded-lg text-xs font-medium truncate transition cursor-pointer ${
                       filters.paidBy === opt.id
-                        ? 'bg-teal-500 text-slate-950 font-semibold'
+                        ? 'bg-[#c4b5fd] text-[#181622] font-semibold'
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -260,7 +259,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
                     splitType: e.target.value as ExpenseFilters['splitType']
                   })
                 }
-                className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+                className="w-full px-3 py-2 rounded-xl bg-[#151320] border border-[#332f4a] text-xs text-slate-200 focus:outline-none focus:border-[#c4b5fd]"
               >
                 <option value="all">All Types</option>
                 <option value="shared">Shared Splits (50/50 & Custom)</option>
@@ -280,7 +279,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
                   placeholder="Min"
                   value={filters.minAmount}
                   onChange={(e) => onChange({ ...filters, minAmount: e.target.value })}
-                  className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+                  className="w-full px-2.5 py-1.5 rounded-xl bg-[#151320] border border-[#332f4a] text-xs text-slate-200 focus:outline-none focus:border-[#c4b5fd]"
                 />
                 <input
                   type="number"
@@ -288,7 +287,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
                   placeholder="Max"
                   value={filters.maxAmount}
                   onChange={(e) => onChange({ ...filters, maxAmount: e.target.value })}
-                  className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-teal-500"
+                  className="w-full px-2.5 py-1.5 rounded-xl bg-[#151320] border border-[#332f4a] text-xs text-slate-200 focus:outline-none focus:border-[#c4b5fd]"
                 />
               </div>
             </div>
@@ -305,7 +304,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
                 onChange={(e) =>
                   onChange({ ...filters, sortBy: e.target.value as SortOption })
                 }
-                className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200"
+                className="w-full px-2.5 py-1.5 rounded-xl bg-[#151320] border border-[#332f4a] text-xs text-slate-200"
               >
                 <option value="date-desc">Newest first</option>
                 <option value="date-asc">Oldest first</option>
@@ -321,7 +320,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
                 <select
                   value={filters.currency}
                   onChange={(e) => onChange({ ...filters, currency: e.target.value })}
-                  className="w-full px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200"
+                  className="w-full px-2.5 py-1.5 rounded-xl bg-[#151320] border border-[#332f4a] text-xs text-slate-200"
                 >
                   <option value="all">All Currencies</option>
                   {availableCurrencies.map((c) => (
@@ -338,9 +337,9 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
 
       {/* Live Filtered Summary Banner when any filter/search is active */}
       {isFiltered && (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 rounded-xl bg-teal-500/10 border border-teal-500/30 text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 rounded-xl bg-[#c4b5fd]/15 border border-[#c4b5fd]/35 text-xs">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span className="font-semibold text-teal-300">
+            <span className="font-semibold text-[#ddd6fe]">
               Showing {filteredCount} of {totalCount} items
             </span>
             <span className="text-slate-300">
@@ -360,7 +359,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
           <button
             type="button"
             onClick={resetAll}
-            className="inline-flex items-center gap-1 font-semibold text-teal-300 hover:text-teal-200 cursor-pointer"
+            className="inline-flex items-center gap-1 font-semibold text-[#ddd6fe] hover:text-white cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span>Reset Filters</span>

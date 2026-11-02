@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   X,
   Check,
-  Copy,
   RefreshCw,
   Share2,
   Settings,
@@ -40,7 +39,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    onSaveSettings(form, Boolean(form.scriptUrl.trim()));
+    onSaveSettings(
+      { ...form, accounts: settings.accounts, activeAccountId: settings.activeAccountId },
+      Boolean(form.scriptUrl.trim())
+    );
     setSavedNotice(true);
     setTimeout(() => setSavedNotice(false), 1500);
   };
@@ -48,7 +50,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleCopyPartnerLink = () => {
     const targetPartner: PartnerId =
       form.currentUser === 'userA' ? 'userB' : 'userA';
-    const url = createPartnerInviteUrl(form, targetPartner);
+    const url = createPartnerInviteUrl(
+      { ...form, accounts: settings.accounts, activeAccountId: settings.activeAccountId },
+      targetPartner
+    );
     navigator.clipboard.writeText(url);
     setCopiedInvite(true);
     setTimeout(() => setCopiedInvite(false), 2500);
@@ -58,12 +63,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     form.currentUser === 'userA' ? form.userBName : form.userAName;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-950/80 backdrop-blur-sm p-0 sm:p-4">
-      <div className="w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-slate-900 border border-slate-800 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#0f0d16]/80 backdrop-blur-sm p-0 sm:p-4">
+      <div className="w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-[#1e1b2b] border border-[#332f4a] shadow-2xl">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-slate-900/95 backdrop-blur border-b border-slate-800">
+        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-[#1e1b2b]/95 backdrop-blur border-b border-[#332f4a]">
           <div className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-teal-400" />
+            <Settings className="w-5 h-5 text-[#c4b5fd]" />
             <h3 className="text-base sm:text-lg font-bold text-white">
               Couple & Google Sheet Settings
             </h3>
@@ -71,7 +76,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#2a263d] transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -79,8 +84,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
         <form onSubmit={handleSave} className="p-5 space-y-5">
           {/* Couple Profile Section */}
-          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3.5">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-teal-400">
+          <div className="p-4 rounded-2xl bg-[#151320] border border-[#332f4a] space-y-3.5">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#c4b5fd]">
               1. Couple Names & Currency
             </h4>
 
@@ -94,7 +99,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   required
                   value={form.userAName}
                   onChange={(e) => setForm({ ...form, userAName: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white focus:outline-none focus:border-teal-500"
+                  className="w-full px-3 py-2 rounded-xl bg-[#1e1b2b] border border-[#332f4a] text-sm text-white focus:outline-none focus:border-[#c4b5fd]"
                 />
               </div>
 
@@ -107,7 +112,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   required
                   value={form.userBName}
                   onChange={(e) => setForm({ ...form, userBName: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white focus:outline-none focus:border-teal-500"
+                  className="w-full px-3 py-2 rounded-xl bg-[#1e1b2b] border border-[#332f4a] text-sm text-white focus:outline-none focus:border-[#c4b5fd]"
                 />
               </div>
             </div>
@@ -122,7 +127,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onChange={(e) =>
                     setForm({ ...form, currentUser: e.target.value as PartnerId })
                   }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white focus:outline-none focus:border-teal-500"
+                  className="w-full px-3 py-2 rounded-xl bg-[#1e1b2b] border border-[#332f4a] text-sm text-white focus:outline-none focus:border-[#c4b5fd]"
                 >
                   <option value="userA">{form.userAName}</option>
                   <option value="userB">{form.userBName}</option>
@@ -138,7 +143,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onChange={(e) =>
                     setForm({ ...form, baseCurrency: e.target.value })
                   }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-white focus:outline-none focus:border-teal-500"
+                  className="w-full px-3 py-2 rounded-xl bg-[#1e1b2b] border border-[#332f4a] text-sm text-white focus:outline-none focus:border-[#c4b5fd]"
                 >
                   {CURRENCIES.map((c) => (
                     <option key={c.code} value={c.code}>
@@ -166,15 +171,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onChange={(e) =>
                   setForm({ ...form, defaultSplitA: Number(e.target.value) })
                 }
-                className="w-full accent-teal-500"
+                className="w-full accent-[#c4b5fd]"
               />
             </div>
           </div>
 
           {/* Google Sheet Backend Connection */}
-          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3.5">
+          <div className="p-4 rounded-2xl bg-[#151320] border border-[#332f4a] space-y-3.5">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-teal-400">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-[#c4b5fd]">
                 2. Live Google Sheet in Google Drive
               </h4>
               {form.sheetUrl && (
@@ -182,7 +187,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   href={form.sheetUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-teal-300 hover:underline"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#c4b5fd] hover:underline"
                 >
                   <span>Open Sheet</span>
                   <ExternalLink className="w-3 h-3" />
@@ -203,7 +208,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 placeholder="https://script.google.com/macros/s/AKfycb.../exec"
                 value={form.scriptUrl}
                 onChange={(e) => setForm({ ...form, scriptUrl: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-white placeholder:text-slate-600 focus:outline-none focus:border-teal-500"
+                className="w-full px-3 py-2 rounded-xl bg-[#1e1b2b] border border-[#332f4a] text-xs font-mono text-white placeholder:text-slate-600 focus:outline-none focus:border-[#c4b5fd]"
               />
             </div>
 
@@ -217,7 +222,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   placeholder="change-me-secret-key"
                   value={form.secretKey}
                   onChange={(e) => setForm({ ...form, secretKey: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-white placeholder:text-slate-600 focus:outline-none focus:border-teal-500"
+                  className="w-full px-3 py-2 rounded-xl bg-[#1e1b2b] border border-[#332f4a] text-xs font-mono text-white placeholder:text-slate-600 focus:outline-none focus:border-[#c4b5fd]"
                 />
               </div>
 
@@ -230,20 +235,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   placeholder="https://docs.google.com/spreadsheets/d/..."
                   value={form.sheetUrl}
                   onChange={(e) => setForm({ ...form, sheetUrl: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-white placeholder:text-slate-600 focus:outline-none focus:border-teal-500"
+                  className="w-full px-3 py-2 rounded-xl bg-[#1e1b2b] border border-[#332f4a] text-xs font-mono text-white placeholder:text-slate-600 focus:outline-none focus:border-[#c4b5fd]"
                 />
               </div>
             </div>
 
             {syncError && (
-              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300">
+              <div className="p-2.5 rounded-xl bg-[#fecdd3]/10 border border-[#fecdd3]/30 text-xs text-[#fecdd3]">
                 {syncError}
               </div>
             )}
 
             {/* 1-Click Magic Setup Link for Partner */}
             {form.scriptUrl.trim() && (
-              <div className="pt-2 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="pt-2 border-t border-[#332f4a] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <span className="text-xs font-semibold text-slate-200 block">
                     Share with {partnerTargetName}
@@ -255,11 +260,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <button
                   type="button"
                   onClick={handleCopyPartnerLink}
-                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 text-xs font-semibold transition cursor-pointer shrink-0"
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#fbcfe8]/15 hover:bg-[#fbcfe8]/25 text-[#fbcfe8] border border-[#fbcfe8]/35 text-xs font-semibold transition cursor-pointer shrink-0"
                 >
                   {copiedInvite ? (
                     <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <Check className="w-3.5 h-3.5 text-[#a7f3d0]" />
                       <span>Link Copied!</span>
                     </>
                   ) : (
@@ -274,14 +279,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
 
           {/* Danger / Local Reset */}
-          <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-slate-950/60 border border-slate-800/70 text-xs">
+          <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-[#151320]/60 border border-[#332f4a] text-xs">
             <span className="text-slate-400">
               Need to reset local browser cache on this device?
             </span>
             <button
               type="button"
               onClick={onClearAllLocal}
-              className="inline-flex items-center gap-1 text-rose-400 hover:underline font-medium cursor-pointer"
+              className="inline-flex items-center gap-1 text-[#fda4af] hover:underline font-medium cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Clear Local Cache</span>
@@ -293,14 +298,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-[#2a263d] hover:bg-[#35304d] text-slate-300 text-sm font-medium transition cursor-pointer"
             >
               Close
             </button>
             <button
               type="submit"
               disabled={isSyncing}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm shadow-lg shadow-teal-500/20 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#c4b5fd] hover:bg-[#ddd6fe] text-[#181622] font-bold text-sm shadow-lg shadow-[#c4b5fd]/20 transition cursor-pointer"
             >
               {isSyncing ? (
                 <>
@@ -313,10 +318,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <span>Saved!</span>
                 </>
               ) : (
-                <>
-                  <Copy className="w-4 h-4 hidden" />
-                  <span>Save & Sync Sheet</span>
-                </>
+                <span>Save & Sync Sheet</span>
               )}
             </button>
           </div>

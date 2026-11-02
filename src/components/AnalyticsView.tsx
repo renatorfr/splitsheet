@@ -22,21 +22,19 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
   if (activeExpenses.length === 0) {
     return (
-      <div className="rounded-3xl bg-slate-900/70 border border-slate-800 p-10 text-center">
+      <div className="rounded-3xl bg-[#1e1b2b]/80 border border-[#332f4a] p-10 text-center">
         <p className="text-sm text-slate-400">
-          Add or import expenses to see category breakdowns and monthly spending trends.
+          Add or import expenses in this account to see category breakdowns and monthly spending trends.
         </p>
       </div>
     );
   }
 
-  // 1. Category aggregation
   const catMap = new Map<
     string,
     { total: number; count: number; userAPaid: number; userBPaid: number }
   >();
 
-  // 2. Monthly aggregation (YYYY-MM)
   const monthMap = new Map<
     string,
     { total: number; userAPaid: number; userBPaid: number; count: number }
@@ -94,7 +92,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Category Breakdown Card */}
-      <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-5 sm:p-6">
+      <div className="rounded-3xl bg-[#1e1b2b]/90 border border-[#332f4a] p-5 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base sm:text-lg font-bold text-white">
@@ -104,7 +102,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
               Tap any category to filter transactions by that category
             </p>
           </div>
-          <span className="text-xs font-semibold text-teal-300 bg-teal-500/10 border border-teal-500/30 px-2.5 py-1 rounded-full">
+          <span className="text-xs font-semibold text-[#ddd6fe] bg-[#c4b5fd]/15 border border-[#c4b5fd]/35 px-2.5 py-1 rounded-full">
             Total: {formatMoney(summary.totalSpend, settings.baseCurrency)}
           </span>
         </div>
@@ -117,12 +115,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                 key={row.category}
                 type="button"
                 onClick={() => onSelectCategoryFilter(row.category)}
-                className="w-full text-left group p-3 rounded-2xl bg-slate-950/60 hover:bg-slate-950 border border-slate-800/80 hover:border-slate-700 transition cursor-pointer"
+                className="w-full text-left group p-3 rounded-2xl bg-[#151320]/80 hover:bg-[#151320] border border-[#332f4a] hover:border-[#4c466e] transition cursor-pointer"
               >
                 <div className="flex items-center justify-between text-xs sm:text-sm mb-1.5">
                   <div className="flex items-center gap-2 font-semibold text-slate-100">
                     <span className="text-base">{meta.emoji}</span>
-                    <span className="group-hover:text-teal-300 transition">
+                    <span className="group-hover:text-[#c4b5fd] transition">
                       {meta.label}
                     </span>
                     <span className="text-xs font-normal text-slate-500">
@@ -139,7 +137,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                   </div>
                 </div>
 
-                <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                <div className="w-full h-2 rounded-full bg-[#2a263d] overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all duration-300"
                     style={{
@@ -149,7 +147,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                   />
                 </div>
 
-                <div className="flex justify-between text-[11px] text-slate-500 mt-1.5">
+                <div className="flex justify-between text-[11px] text-slate-400 mt-1.5">
                   <span>
                     {settings.userAName} paid:{' '}
                     {formatMoney(row.userAPaid, settings.baseCurrency)}
@@ -166,7 +164,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
       </div>
 
       {/* Monthly Spending Trend */}
-      <div className="rounded-3xl bg-slate-900/90 border border-slate-800 p-5 sm:p-6">
+      <div className="rounded-3xl bg-[#1e1b2b]/90 border border-[#332f4a] p-5 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base sm:text-lg font-bold text-white">
@@ -177,12 +175,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             </p>
           </div>
           <div className="flex items-center gap-3 text-xs">
-            <span className="inline-flex items-center gap-1.5 text-emerald-400">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <span className="inline-flex items-center gap-1.5 text-[#a7f3d0]">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#a7f3d0]" />
               {settings.userAName}
             </span>
-            <span className="inline-flex items-center gap-1.5 text-indigo-400">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500" />
+            <span className="inline-flex items-center gap-1.5 text-[#fbcfe8]">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#fbcfe8]" />
               {settings.userBName}
             </span>
           </div>
@@ -197,7 +195,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             return (
               <div
                 key={m.month}
-                className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80"
+                className="p-3 rounded-2xl bg-[#151320]/80 border border-[#332f4a]"
               >
                 <div className="flex items-center justify-between text-xs sm:text-sm mb-1.5">
                   <span className="font-semibold text-slate-200">
@@ -212,26 +210,26 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                 </div>
 
                 <div
-                  className="h-3 rounded-full bg-slate-800 overflow-hidden flex"
+                  className="h-3 rounded-full bg-[#2a263d] overflow-hidden flex"
                   style={{ width: `${Math.max(6, widthPct)}%` }}
                 >
                   <div
                     style={{ width: `${aPct}%` }}
-                    className="bg-emerald-500 h-full"
+                    className="bg-[#a7f3d0] h-full"
                     title={`${settings.userAName}: ${formatMoney(m.userAPaid, settings.baseCurrency)}`}
                   />
                   <div
                     style={{ width: `${bPct}%` }}
-                    className="bg-indigo-500 h-full"
+                    className="bg-[#fbcfe8] h-full"
                     title={`${settings.userBName}: ${formatMoney(m.userBPaid, settings.baseCurrency)}`}
                   />
                 </div>
 
-                <div className="flex justify-between text-[11px] text-slate-500 mt-1.5">
-                  <span className="text-emerald-400/90">
+                <div className="flex justify-between text-[11px] text-slate-400 mt-1.5">
+                  <span className="text-[#a7f3d0]">
                     {settings.userAName}: {formatMoney(m.userAPaid, settings.baseCurrency)}
                   </span>
-                  <span className="text-indigo-400/90">
+                  <span className="text-[#fbcfe8]">
                     {settings.userBName}: {formatMoney(m.userBPaid, settings.baseCurrency)}
                   </span>
                 </div>

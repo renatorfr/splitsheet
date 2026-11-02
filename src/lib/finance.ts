@@ -52,14 +52,10 @@ export function computeUserAShare(
       return round2(amt * ratio);
     }
     case '100-B':
-      // Partner B is 100% responsible for this expense
       return 0;
     case '100-A':
-      // Partner A is 100% responsible for this expense
       return amt;
     case 'settlement':
-      // If User A paid User B, User B received 100% of the value -> userAShare = 0
-      // If User B paid User A, User A received 100% of the value -> userAShare = amt
       return paidBy === 'userA' ? 0 : amt;
     case 'custom': {
       if (typeof customUserAShare === 'number' && !Number.isNaN(customUserAShare)) {
@@ -139,7 +135,7 @@ export function getDateRangeForPreset(
   nowDate: Date = new Date()
 ): { from: string | null; to: string | null } {
   const year = nowDate.getFullYear();
-  const month = nowDate.getMonth(); // 0-indexed
+  const month = nowDate.getMonth();
 
   const pad = (n: number) => String(n).padStart(2, '0');
   const fmt = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
@@ -274,7 +270,7 @@ export function filterAndSortExpenses(
       return false;
     }
 
-    // 7. Multi-token text search across title, notes, category, payer name, currency, amount
+    // 7. Multi-token text search across title, notes, category, accountName, payer, currency, amount
     if (searchTokens.length > 0) {
       const payerName =
         exp.paidBy === 'userA' ? settings.userAName : settings.userBName;
@@ -282,6 +278,7 @@ export function filterAndSortExpenses(
         exp.title,
         exp.notes,
         exp.category,
+        exp.accountName || '',
         exp.currency,
         payerName,
         exp.date,
@@ -322,7 +319,6 @@ export function filterAndSortExpenses(
 
 /**
  * Fetches live/historical exchange rate from the free Frankfurter API (ECB rates).
- * Returns multiplier: 1 unit of `fromCurrency` = X units of `toCurrency`.
  */
 export async function fetchExchangeRate(
   fromCurrency: string,
@@ -355,9 +351,6 @@ export async function fetchExchangeRate(
   }
 }
 
-/**
- * Parses CSV lines respecting quoted fields.
- */
 function splitCsvLine(line: string, delimiter: string): string[] {
   const result: string[] = [];
   let current = '';
@@ -388,7 +381,6 @@ function normalizeDate(raw: string): string {
   if (/^\d{4}-\d{2}-\d{2}/.test(cleaned)) {
     return cleaned.slice(0, 10);
   }
-  // DD/MM/YYYY or DD.MM.YYYY
   const dmy = cleaned.match(/^(\d{1,2})[/. -](\d{1,2})[/. -](\d{4})/);
   if (dmy) {
     const d = dmy[1].padStart(2, '0');
@@ -431,7 +423,11 @@ function guessCategory(title: string, rawCategory?: string): string {
 /**
  * Parses Tricount, Splitwise, or generic CSV files into SplitSheet expenses.
  */
-export function parseCsvImport(csvText: string, settings: AppSettings): Expense[] {
+export function parseCsvImport(
+  csvText: string,
+  settings: AppSettings,
+  targetAccountId?: string
+): Expense[] {
   const lines = csvText
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n')
@@ -441,7 +437,6 @@ export function parseCsvImport(csvText: string, settings: AppSettings): Expense[
 
   if (lines.length < 2) return [];
 
-  // Auto-detect delimiter (comma, semicolon, or tab)
   const headerLine = lines[0];
   const commaCount = (headerLine.match(/,/g) || []).length;
   const semiCount = (headerLine.match(/;/g) || []).length;
@@ -465,11 +460,20 @@ export function parseCsvImport(csvText: string, settings: AppSettings): Expense[
   const currencyIdx = findCol([/^(currency|curr|iso)$/i, /currency/i]);
   const paidByIdx = findCol([/^(paid by|payer|who paid|by|paidby|author)$/i, /paid|payer/i]);
   const dateIdx = findCol([/^(date|when|created|day|time)$/i, /date/i]);
-  const categoryIdx = findCol([/^(category|type|tag|group)$/i, /cat/i]);
+  const categoryIdx = findCol([/^(category|type|tag)$/i, /cat/i]);
   const notesIdx = findCol([/^(notes|note|comment|memo)$/i]);
   const userAShareIdx = findCol([
     new RegExp(`^(${settings.userAName.toLowerCase()}|userashare|share a)`, 'i')
   ]);
+
+  const fallbackAccountId =
+    targetAccountId && targetAccountId !== 'all'
+      ? targetAccountId
+      : settings.activeAccountId !== 'all'
+        ? settings.activeAccountId
+        : settings.accounts[0]?.id || 'everyday';
+  const fallbackAccountName =
+    settings.accounts.find((a) => a.id === fallbackAccountId)?.name || 'Everyday';
 
   const results: Expense[] = [];
   const now = Date.now();
@@ -482,7 +486,6 @@ export function parseCsvImport(csvText: string, settings: AppSettings): Expense[
     if (/^(total|balance)$/i.test(title)) continue;
 
     const rawAmtStr = (amountIdx >= 0 ? cols[amountIdx] : cols[1]) || '0';
-    // Handle both 1,234.56 and European 1.234,56
     let normalizedAmt = rawAmtStr.replace(/[^0-9,.-]/g, '');
     if (normalizedAmt.includes(',') && !normalizedAmt.includes('.')) {
       normalizedAmt = normalizedAmt.replace(',', '.');
@@ -544,6 +547,8 @@ export function parseCsvImport(csvText: string, settings: AppSettings): Expense[
       notes,
       isDeleted: false,
       updatedAt: now + i,
+      accountId: fallbackAccountId,
+      accountName: fallbackAccountName,
       dirty: true
     });
   }
@@ -557,6 +562,7 @@ export function parseCsvImport(csvText: string, settings: AppSettings): Expense[
 export function exportExpensesToCsv(expenses: Expense[], settings: AppSettings): string {
   const headers = [
     'Date',
+    'Account',
     'Title',
     'Category',
     'Amount',
@@ -585,8 +591,13 @@ export function exportExpensesToCsv(expenses: Expense[], settings: AppSettings):
     .map((e) => {
       const payerName = e.paidBy === 'userA' ? settings.userAName : settings.userBName;
       const shareB = round2(e.baseAmount - e.userAShare);
+      const accName =
+        e.accountName ||
+        settings.accounts.find((a) => a.id === (e.accountId || 'everyday'))?.name ||
+        'Everyday';
       return [
         e.date,
+        accName,
         e.title,
         e.category,
         e.amount.toFixed(2),

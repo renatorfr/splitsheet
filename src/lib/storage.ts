@@ -1,5 +1,5 @@
-import { AppSettings, Expense, PartnerId } from '../types';
-import { DEFAULT_SETTINGS } from './constants';
+import { AccountGroup, AppSettings, Expense, PartnerId } from '../types';
+import { DEFAULT_ACCOUNTS, DEFAULT_SETTINGS } from './constants';
 
 const EXPENSES_STORAGE_KEY = 'splitsheet_expenses_v1';
 const SETTINGS_STORAGE_KEY = 'splitsheet_settings_v1';
@@ -86,11 +86,45 @@ export async function saveExpenses(expenses: Expense[]): Promise<void> {
   });
 }
 
+export function normalizeAccounts(accounts?: AccountGroup[]): AccountGroup[] {
+  if (!Array.isArray(accounts) || accounts.length === 0) {
+    return [...DEFAULT_ACCOUNTS];
+  }
+  const map = new Map<string, AccountGroup>();
+  for (const acc of accounts) {
+    if (acc && acc.id && acc.name) {
+      map.set(acc.id, {
+        id: acc.id,
+        name: acc.name,
+        emoji: acc.emoji || '🏠',
+        createdAt: Number(acc.createdAt) || 1,
+        isArchived: Boolean(acc.isArchived)
+      });
+    }
+  }
+  if (map.size === 0) {
+    return [...DEFAULT_ACCOUNTS];
+  }
+  return Array.from(map.values());
+}
+
 export function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (!raw) return { ...DEFAULT_SETTINGS };
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    const accounts = normalizeAccounts(parsed.accounts);
+    const activeAccountId =
+      parsed.activeAccountId === 'all' ||
+      accounts.some((a) => a.id === parsed.activeAccountId)
+        ? parsed.activeAccountId
+        : accounts[0].id;
+    return {
+      ...DEFAULT_SETTINGS,
+      ...parsed,
+      accounts,
+      activeAccountId
+    };
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
@@ -117,6 +151,8 @@ export function createPartnerInviteUrl(
     currentUser: targetPartner,
     baseCurrency: settings.baseCurrency,
     defaultSplitA: settings.defaultSplitA,
+    accounts: settings.accounts,
+    activeAccountId: settings.activeAccountId,
     scriptUrl: settings.scriptUrl,
     secretKey: settings.secretKey,
     sheetUrl: settings.sheetUrl,
@@ -140,7 +176,6 @@ export function consumePartnerInviteFromHash(): Partial<AppSettings> | null {
     const encoded = hash.slice('#invite='.length);
     const json = decodeURIComponent(atob(encoded));
     const parsed = JSON.parse(json);
-    // Clean URL hash without reloading
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
     return parsed;
   } catch {
@@ -159,7 +194,7 @@ export interface SyncResult {
 }
 
 /**
- * Synchronizes local dirty expenses with the Google Apps Script Web App backend
+ * Synchronizes local dirty expenses and accounts with the Google Apps Script Web App backend
  * and merges all remote rows using last-write-wins (`updatedAt`).
  */
 export async function syncWithGoogleSheet(
@@ -178,13 +213,24 @@ export async function syncWithGoogleSheet(
     };
   }
 
-  const upserts = pushAll
-    ? localExpenses
-    : localExpenses.filter((e) => e.dirty);
+  const accountNameById = new Map<string, string>(
+    settings.accounts.map((a) => [a.id, a.name])
+  );
+
+  const upserts = (pushAll ? localExpenses : localExpenses.filter((e) => e.dirty)).map(
+    ({ dirty, ...clean }) => {
+      const accId = clean.accountId || 'everyday';
+      const accName =
+        clean.accountName || accountNameById.get(accId) || 'Everyday';
+      return {
+        ...clean,
+        accountId: accId,
+        accountName: accName
+      };
+    }
+  );
 
   try {
-    // Using text/plain;charset=utf-8 prevents browser CORS preflight OPTIONS request
-    // which Google Apps Script web apps do not support.
     const response = await fetch(scriptUrl, {
       method: 'POST',
       headers: {
@@ -194,12 +240,13 @@ export async function syncWithGoogleSheet(
       body: JSON.stringify({
         action: 'sync',
         secret,
-        upserts: upserts.map(({ dirty, ...clean }) => clean),
+        upserts,
         config: {
           userAName: settings.userAName,
           userBName: settings.userBName,
           baseCurrency: settings.baseCurrency,
-          defaultSplitA: String(settings.defaultSplitA)
+          defaultSplitA: String(settings.defaultSplitA),
+          accountsJson: JSON.stringify(settings.accounts)
         }
       })
     });
@@ -226,7 +273,13 @@ export async function syncWithGoogleSheet(
 
     // First populate with local expenses
     for (const loc of localExpenses) {
-      mergedMap.set(loc.id, { ...loc, dirty: false });
+      const accId = loc.accountId || 'everyday';
+      mergedMap.set(loc.id, {
+        ...loc,
+        accountId: accId,
+        accountName: loc.accountName || accountNameById.get(accId) || 'Everyday',
+        dirty: false
+      });
     }
 
     // Merge remote expenses by updatedAt
@@ -234,6 +287,10 @@ export async function syncWithGoogleSheet(
       if (!rem || !rem.id) continue;
       const existing = mergedMap.get(rem.id);
       if (!existing || (Number(rem.updatedAt) || 0) >= (Number(existing.updatedAt) || 0)) {
+        const accId = String(rem.accountId || existing?.accountId || 'everyday').trim() || 'everyday';
+        const accName =
+          String(rem.accountName || existing?.accountName || accountNameById.get(accId) || 'Everyday').trim() ||
+          'Everyday';
         mergedMap.set(rem.id, {
           ...rem,
           amount: Number(rem.amount) || 0,
@@ -242,6 +299,8 @@ export async function syncWithGoogleSheet(
           userAShare: Number(rem.userAShare) || 0,
           isDeleted: Boolean(rem.isDeleted),
           updatedAt: Number(rem.updatedAt) || 0,
+          accountId: accId,
+          accountName: accName,
           dirty: false
         });
       }
@@ -249,20 +308,61 @@ export async function syncWithGoogleSheet(
 
     const mergedList = Array.from(mergedMap.values());
 
+    // Merge local accounts + remote accountsJson + any accounts discovered on transaction rows
+    const mergedAccountsMap = new Map<string, AccountGroup>();
+    for (const acc of settings.accounts) {
+      mergedAccountsMap.set(acc.id, acc);
+    }
+
+    if (data.config?.accountsJson) {
+      try {
+        const parsedRemoteAccs = JSON.parse(data.config.accountsJson);
+        if (Array.isArray(parsedRemoteAccs)) {
+          for (const ra of parsedRemoteAccs) {
+            if (ra && ra.id && ra.name && !mergedAccountsMap.has(ra.id)) {
+              mergedAccountsMap.set(ra.id, {
+                id: String(ra.id),
+                name: String(ra.name),
+                emoji: String(ra.emoji || '🏠'),
+                createdAt: Number(ra.createdAt) || Date.now(),
+                isArchived: Boolean(ra.isArchived)
+              });
+            }
+          }
+        }
+      } catch {
+        // ignore invalid remote json
+      }
+    }
+
+    for (const exp of mergedList) {
+      if (exp.isDeleted) continue;
+      const accId = exp.accountId || 'everyday';
+      if (!mergedAccountsMap.has(accId)) {
+        mergedAccountsMap.set(accId, {
+          id: accId,
+          name: exp.accountName || accId,
+          emoji: '📁',
+          createdAt: Date.now()
+        });
+      }
+    }
+
+    const mergedAccounts = normalizeAccounts(Array.from(mergedAccountsMap.values()));
+
     return {
       ok: true,
       expenses: mergedList,
       sheetUrl: data.sheetUrl || settings.sheetUrl,
       sheetName: data.sheetName || settings.sheetName,
       upsertedCount: data.upsertedCount || 0,
-      remoteConfig: data.config
-        ? {
-            userAName: data.config.userAName || settings.userAName,
-            userBName: data.config.userBName || settings.userBName,
-            baseCurrency: data.config.baseCurrency || settings.baseCurrency,
-            defaultSplitA: Number(data.config.defaultSplitA) || settings.defaultSplitA
-          }
-        : undefined
+      remoteConfig: {
+        userAName: data.config?.userAName || settings.userAName,
+        userBName: data.config?.userBName || settings.userBName,
+        baseCurrency: data.config?.baseCurrency || settings.baseCurrency,
+        defaultSplitA: Number(data.config?.defaultSplitA) || settings.defaultSplitA,
+        accounts: mergedAccounts
+      }
     };
   } catch (err: unknown) {
     const message =

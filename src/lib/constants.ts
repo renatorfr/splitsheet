@@ -1,4 +1,4 @@
-import { AppSettings, CategoryId, ExpenseFilters } from '../types';
+import { AccountGroup, AppSettings, CategoryId, ExpenseFilters } from '../types';
 
 export interface CategoryMeta {
   id: CategoryId;
@@ -9,94 +9,120 @@ export interface CategoryMeta {
   barColor: string;
 }
 
+export const DEFAULT_ACCOUNTS: AccountGroup[] = [
+  {
+    id: 'everyday',
+    name: 'Everyday',
+    emoji: '🏠',
+    createdAt: 1
+  }
+];
+
+export const ACCOUNT_EMOJIS = [
+  '🏠',
+  '✈️',
+  '🏖️',
+  '🛒',
+  '🍽️',
+  '🎉',
+  '🚗',
+  '🛋️',
+  '🐶',
+  '🎄',
+  '🏕️',
+  '💍',
+  '🎟️',
+  '💼'
+];
+
 export const CATEGORIES: CategoryMeta[] = [
   {
     id: 'Groceries',
     label: 'Groceries',
     emoji: '🛒',
-    colorClass: 'text-emerald-400',
-    badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
-    barColor: '#10b981'
+    colorClass: 'text-[#a7f3d0]',
+    badgeClass: 'bg-[#a7f3d0]/15 text-[#a7f3d0] border-[#a7f3d0]/30',
+    barColor: '#a7f3d0'
   },
   {
     id: 'Dining Out',
     label: 'Dining Out',
     emoji: '🍽️',
-    colorClass: 'text-amber-400',
-    badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
-    barColor: '#f59e0b'
+    colorClass: 'text-[#fdba74]',
+    badgeClass: 'bg-[#fdba74]/15 text-[#fed7aa] border-[#fdba74]/30',
+    barColor: '#fdba74'
   },
   {
     id: 'Rent & Bills',
     label: 'Rent & Bills',
     emoji: '🏠',
-    colorClass: 'text-blue-400',
-    badgeClass: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
-    barColor: '#3b82f6'
+    colorClass: 'text-[#bae6fd]',
+    badgeClass: 'bg-[#bae6fd]/15 text-[#bae6fd] border-[#bae6fd]/30',
+    barColor: '#bae6fd'
   },
   {
     id: 'Travel',
     label: 'Travel',
     emoji: '✈️',
-    colorClass: 'text-purple-400',
-    badgeClass: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
-    barColor: '#a855f7'
+    colorClass: 'text-[#ddd6fe]',
+    badgeClass: 'bg-[#ddd6fe]/15 text-[#ddd6fe] border-[#ddd6fe]/30',
+    barColor: '#c4b5fd'
   },
   {
     id: 'Transport',
     label: 'Transport',
     emoji: '🚗',
-    colorClass: 'text-cyan-400',
-    badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
-    barColor: '#06b6d4'
+    colorClass: 'text-[#99f6e4]',
+    badgeClass: 'bg-[#99f6e4]/15 text-[#99f6e4] border-[#99f6e4]/30',
+    barColor: '#99f6e4'
   },
   {
     id: 'Shopping',
     label: 'Shopping',
     emoji: '🛍️',
-    colorClass: 'text-pink-400',
-    badgeClass: 'bg-pink-500/15 text-pink-300 border-pink-500/30',
-    barColor: '#ec4899'
+    colorClass: 'text-[#fbcfe8]',
+    badgeClass: 'bg-[#fbcfe8]/15 text-[#fbcfe8] border-[#fbcfe8]/30',
+    barColor: '#f9a8d4'
   },
   {
     id: 'Home',
     label: 'Home',
     emoji: '🛋️',
-    colorClass: 'text-teal-400',
-    badgeClass: 'bg-teal-500/15 text-teal-300 border-teal-500/30',
-    barColor: '#14b8a6'
+    colorClass: 'text-[#fde68a]',
+    badgeClass: 'bg-[#fde68a]/15 text-[#fde68a] border-[#fde68a]/30',
+    barColor: '#fde68a'
   },
   {
     id: 'Entertainment',
     label: 'Entertainment',
     emoji: '🎬',
-    colorClass: 'text-indigo-400',
-    badgeClass: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
-    barColor: '#6366f1'
+    colorClass: 'text-[#c7d2fe]',
+    badgeClass: 'bg-[#c7d2fe]/15 text-[#c7d2fe] border-[#c7d2fe]/30',
+    barColor: '#a5b4fc'
   },
   {
     id: 'Health',
     label: 'Health',
     emoji: '💊',
-    colorClass: 'text-rose-400',
-    badgeClass: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
-    barColor: '#f43f5e'
+    colorClass: 'text-[#fecdd3]',
+    badgeClass: 'bg-[#fecdd3]/15 text-[#fecdd3] border-[#fecdd3]/30',
+    barColor: '#fda4af'
   },
   {
     id: 'Settlement',
     label: 'Settlement',
     emoji: '🤝',
-    colorClass: 'text-sky-400',
-    badgeClass: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
-    barColor: '#0ea5e9'
+    colorClass: 'text-[#bae6fd]',
+    badgeClass: 'bg-[#bae6fd]/15 text-[#e0f2fe] border-[#bae6fd]/35',
+    barColor: '#7dd3fc'
   },
   {
     id: 'Other',
     label: 'Other',
     emoji: '📦',
-    colorClass: 'text-slate-400',
-    badgeClass: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
-    barColor: '#64748b'
+    colorClass: 'text-[#cbd5e1]',
+    badgeClass: 'bg-[#cbd5e1]/15 text-[#e2e8f0] border-[#cbd5e1]/30',
+    barColor: '#cbd5e1'
   }
 ];
 
@@ -110,9 +136,9 @@ export function getCategoryMeta(cat: string): CategoryMeta {
       id: 'Other',
       label: cat || 'Other',
       emoji: '📦',
-      colorClass: 'text-slate-400',
-      badgeClass: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
-      barColor: '#64748b'
+      colorClass: 'text-[#cbd5e1]',
+      badgeClass: 'bg-[#cbd5e1]/15 text-[#e2e8f0] border-[#cbd5e1]/30',
+      barColor: '#cbd5e1'
     }
   );
 }
@@ -146,6 +172,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   currentUser: 'userA',
   baseCurrency: 'EUR',
   defaultSplitA: 50,
+  accounts: DEFAULT_ACCOUNTS,
+  activeAccountId: 'everyday',
   scriptUrl: '',
   secretKey: '',
   sheetUrl: '',

@@ -13,7 +13,6 @@ import { Expense } from '../types';
 describe('SplitSheet Finance & Filtering Engine', () => {
   it('computes net balance accurately across 50-50, 100% owed, custom splits, and settlements', () => {
     const expenses: Expense[] = [
-      // 1. User A pays €100, 50/50 -> User B owes User A €50
       {
         id: '1',
         date: '2026-10-01',
@@ -28,9 +27,10 @@ describe('SplitSheet Finance & Filtering Engine', () => {
         category: 'Groceries',
         notes: '',
         isDeleted: false,
-        updatedAt: 1
+        updatedAt: 1,
+        accountId: 'everyday',
+        accountName: 'Everyday'
       },
-      // 2. User A pays €40 for User B (100-B) -> User B owes User A €40
       {
         id: '2',
         date: '2026-10-02',
@@ -45,9 +45,10 @@ describe('SplitSheet Finance & Filtering Engine', () => {
         category: 'Shopping',
         notes: '',
         isDeleted: false,
-        updatedAt: 2
+        updatedAt: 2,
+        accountId: 'everyday',
+        accountName: 'Everyday'
       },
-      // 3. User B pays €60, 50/50 -> User A owes User B €30
       {
         id: '3',
         date: '2026-10-03',
@@ -62,7 +63,9 @@ describe('SplitSheet Finance & Filtering Engine', () => {
         category: 'Dining Out',
         notes: '',
         isDeleted: false,
-        updatedAt: 3
+        updatedAt: 3,
+        accountId: 'everyday',
+        accountName: 'Everyday'
       }
     ];
 
@@ -71,13 +74,11 @@ describe('SplitSheet Finance & Filtering Engine', () => {
     expect(computeExpenseCreditA(expenses[2])).toBe(-30);
 
     const summaryBefore = calculateSummary(expenses);
-    // Net balance: +50 + 40 - 30 = +60 (User B owes User A €60)
     expect(summaryBefore.netBalanceA).toBe(60);
     expect(summaryBefore.totalSpend).toBe(200);
     expect(summaryBefore.userAPaid).toBe(140);
     expect(summaryBefore.userBPaid).toBe(60);
 
-    // 4. Now User B settles up €60 to User A
     const settlement: Expense = {
       id: '4',
       date: '2026-10-04',
@@ -92,12 +93,13 @@ describe('SplitSheet Finance & Filtering Engine', () => {
       category: 'Settlement',
       notes: '',
       isDeleted: false,
-      updatedAt: 4
+      updatedAt: 4,
+      accountId: 'everyday',
+      accountName: 'Everyday'
     };
 
     const summaryAfter = calculateSummary([...expenses, settlement]);
     expect(summaryAfter.netBalanceA).toBe(0);
-    // Total spend should not include settlements
     expect(summaryAfter.totalSpend).toBe(200);
     expect(summaryAfter.settlementCount).toBe(1);
   });
@@ -118,7 +120,9 @@ describe('SplitSheet Finance & Filtering Engine', () => {
         category: 'Groceries',
         notes: 'Weekly food',
         isDeleted: false,
-        updatedAt: 10
+        updatedAt: 10,
+        accountId: 'everyday',
+        accountName: 'Everyday'
       },
       {
         id: 'b',
@@ -134,7 +138,9 @@ describe('SplitSheet Finance & Filtering Engine', () => {
         category: 'Transport',
         notes: 'Lisbon trip',
         isDeleted: false,
-        updatedAt: 11
+        updatedAt: 11,
+        accountId: 'lisbon',
+        accountName: 'Lisbon Trip'
       }
     ];
 
@@ -155,22 +161,33 @@ describe('SplitSheet Finance & Filtering Engine', () => {
     expect(byMinAmount[0].id).toBe('a');
   });
 
-  it('parses Tricount/CSV imports and exports CSV cleanly', () => {
+  it('parses Tricount/CSV imports into a target Account and exports CSV cleanly', () => {
+    const settingsWithTrip = {
+      ...DEFAULT_SETTINGS,
+      accounts: [
+        ...DEFAULT_SETTINGS.accounts,
+        { id: 'italy-trip', name: 'Italy Trip', emoji: '✈️', createdAt: 2 }
+      ]
+    };
+
     const csv = [
       'Title,Amount,Currency,Paid By,Date,Category',
       'Supermarket,64.80,EUR,Renato,2026-10-15,Groceries',
       'Sushi Night,42.00,EUR,Partner,2026-10-16,Dining Out'
     ].join('\n');
 
-    const parsed = parseCsvImport(csv, DEFAULT_SETTINGS);
+    const parsed = parseCsvImport(csv, settingsWithTrip, 'italy-trip');
     expect(parsed).toHaveLength(2);
     expect(parsed[0].title).toBe('Supermarket');
+    expect(parsed[0].accountId).toBe('italy-trip');
+    expect(parsed[0].accountName).toBe('Italy Trip');
     expect(parsed[0].paidBy).toBe('userA');
     expect(parsed[0].userAShare).toBe(32.4);
     expect(parsed[1].paidBy).toBe('userB');
     expect(parsed[1].category).toBe('Dining Out');
 
-    const exported = exportExpensesToCsv(parsed, DEFAULT_SETTINGS);
+    const exported = exportExpensesToCsv(parsed, settingsWithTrip);
+    expect(exported).toContain('Italy Trip');
     expect(exported).toContain('Supermarket');
     expect(exported).toContain('Sushi Night');
   });

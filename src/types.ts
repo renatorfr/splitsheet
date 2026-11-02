@@ -15,6 +15,14 @@ export type CategoryId =
   | 'Settlement'
   | 'Other';
 
+export interface AccountGroup {
+  id: string;
+  name: string;
+  emoji: string;
+  createdAt: number;
+  isArchived?: boolean;
+}
+
 export interface Expense {
   id: string;
   date: string; // YYYY-MM-DD
@@ -30,6 +38,8 @@ export interface Expense {
   notes: string;
   isDeleted: boolean;
   updatedAt: number; // Epoch ms
+  accountId?: string; // ID of the Account/Group (defaults to 'everyday')
+  accountName?: string; // Human-readable Account/Group name for Google Sheet
   dirty?: boolean; // Local-only flag: needs sync to Google Sheet
 }
 
@@ -39,6 +49,8 @@ export interface AppSettings {
   currentUser: PartnerId; // Which partner is using this phone
   baseCurrency: string;
   defaultSplitA: number; // Default % share for User A (default 50)
+  accounts: AccountGroup[]; // Separate Tricount-style accounts/groups in the same Sheet
+  activeAccountId: string; // 'everyday', custom account id, or 'all'
   scriptUrl: string; // Google Apps Script Web App URL
   secretKey: string; // Shared passphrase for the script
   sheetUrl: string; // Direct URL to open the Google Sheet in Drive

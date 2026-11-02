@@ -14,6 +14,7 @@ import { formatMoney, round2 } from '../lib/finance';
 interface BalanceHeaderProps {
   summary: BalanceSummary;
   settings: AppSettings;
+  activeAccountLabel: string;
   dirtyCount: number;
   isSyncing: boolean;
   syncError: string | null;
@@ -26,6 +27,7 @@ interface BalanceHeaderProps {
 export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
   summary,
   settings,
+  activeAccountLabel,
   dirtyCount,
   isSyncing,
   syncError,
@@ -39,15 +41,13 @@ export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
   const absBalance = Math.abs(round2(netBalanceA));
   const isSettled = absBalance < 0.01;
 
-  // netBalanceA > 0 means User B owes User A
-  // netBalanceA < 0 means User A owes User B
   const debtorName = netBalanceA > 0 ? settings.userBName : settings.userAName;
   const creditorName = netBalanceA > 0 ? settings.userAName : settings.userBName;
 
   const isConnected = Boolean(settings.scriptUrl.trim());
 
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-teal-950/80 border border-slate-800/90 shadow-xl p-5 sm:p-6">
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1e1b2b] via-[#221e33] to-[#2b2442] border border-[#363152] shadow-xl p-5 sm:p-6">
       {/* Top Status Row: Sync badge + Google Sheet link */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2">
@@ -56,12 +56,12 @@ export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
               type="button"
               onClick={onSyncNow}
               disabled={isSyncing}
-              className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition ${
+              className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition cursor-pointer ${
                 syncError
-                  ? 'bg-rose-500/10 text-rose-300 border-rose-500/30 hover:bg-rose-500/20'
+                  ? 'bg-[#fecdd3]/15 text-[#fecdd3] border-[#fecdd3]/35 hover:bg-[#fecdd3]/25'
                   : dirtyCount > 0
-                    ? 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
-                    : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20'
+                    ? 'bg-[#fde68a]/15 text-[#fde68a] border-[#fde68a]/35 hover:bg-[#fde68a]/25'
+                    : 'bg-[#a7f3d0]/15 text-[#a7f3d0] border-[#a7f3d0]/35 hover:bg-[#a7f3d0]/25'
               }`}
               title="Click to sync with Google Sheets now"
             >
@@ -78,9 +78,9 @@ export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
             <button
               type="button"
               onClick={onOpenSettings}
-              className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-slate-800/90 text-slate-300 border border-slate-700 hover:bg-slate-800 transition"
+              className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-[#151320]/90 text-slate-300 border border-[#363152] hover:bg-[#282438] transition cursor-pointer"
             >
-              <CloudOff className="w-3.5 h-3.5 text-amber-400" />
+              <CloudOff className="w-3.5 h-3.5 text-[#fde68a]" />
               <span>Local Mode • Connect Google Sheet</span>
             </button>
           )}
@@ -90,7 +90,7 @@ export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
               href={settings.sheetUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-teal-500/10 text-teal-300 border border-teal-500/30 hover:bg-teal-500/20 transition"
+              className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-[#c4b5fd]/15 text-[#ddd6fe] border border-[#c4b5fd]/35 hover:bg-[#c4b5fd]/25 transition"
               title="Open live spreadsheet in Google Drive"
             >
               <Cloud className="w-3.5 h-3.5" />
@@ -106,7 +106,7 @@ export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
           <button
             type="button"
             onClick={onOpenSettings}
-            className="font-semibold text-teal-300 hover:underline"
+            className="font-semibold text-[#c4b5fd] hover:underline cursor-pointer"
           >
             {settings.currentUser === 'userA' ? settings.userAName : settings.userBName}
           </button>
@@ -116,18 +116,18 @@ export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
       {/* Main Net Balance Banner */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <p className="text-xs uppercase tracking-wider font-semibold text-slate-400 mb-1">
-            Current Net Balance
+          <p className="text-xs uppercase tracking-wider font-semibold text-[#c4b5fd]/85 mb-1">
+            {activeAccountLabel} — Net Balance
           </p>
           {isSettled ? (
             <div className="flex items-center gap-2.5">
-              <CheckCircle2 className="w-8 h-8 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="w-8 h-8 text-[#a7f3d0] shrink-0" />
               <div>
                 <h2 className="text-2xl sm:text-3xl font-bold text-white">
                   All settled up!
                 </h2>
                 <p className="text-xs text-slate-400">
-                  Neither {settings.userAName} nor {settings.userBName} owes anything right now.
+                  Neither {settings.userAName} nor {settings.userBName} owes anything in this account.
                 </p>
               </div>
             </div>
@@ -137,7 +137,7 @@ export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
                 <span className="text-lg sm:text-xl font-semibold text-slate-200">
                   {debtorName} owes {creditorName}
                 </span>
-                <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-teal-400">
+                <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#c4b5fd]">
                   {formatMoney(absBalance, settings.baseCurrency)}
                 </span>
               </div>
@@ -155,16 +155,16 @@ export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
             <button
               type="button"
               onClick={onSettleUp}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 font-medium text-sm border border-slate-700 transition cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#2a263d] hover:bg-[#35304d] text-slate-100 font-medium text-sm border border-[#423c5e] transition cursor-pointer"
             >
-              <ArrowRightLeft className="w-4 h-4 text-teal-400" />
+              <ArrowRightLeft className="w-4 h-4 text-[#bae6fd]" />
               <span>Settle Up</span>
             </button>
           )}
           <button
             type="button"
             onClick={onAddExpense}
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-sm shadow-lg shadow-teal-500/20 transition cursor-pointer"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#c4b5fd] hover:bg-[#ddd6fe] text-[#181622] font-bold text-sm shadow-lg shadow-[#c4b5fd]/20 transition cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Add Expense</span>
@@ -173,30 +173,30 @@ export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
       </div>
 
       {/* Partner Paid vs Fair Share Mini Cards */}
-      <div className="grid grid-cols-3 gap-2.5 mt-5 pt-4 border-t border-slate-800/80 text-xs">
-        <div className="rounded-xl bg-slate-950/50 border border-slate-800/70 p-2.5">
-          <span className="text-slate-400 block">Total Shared Spend</span>
+      <div className="grid grid-cols-3 gap-2.5 mt-5 pt-4 border-t border-[#363152]/80 text-xs">
+        <div className="rounded-xl bg-[#151320]/65 border border-[#332f4a] p-2.5">
+          <span className="text-slate-400 block">Total Spend</span>
           <span className="text-sm sm:text-base font-bold text-white mt-0.5 block">
             {formatMoney(totalSpend, settings.baseCurrency)}
           </span>
         </div>
 
-        <div className="rounded-xl bg-slate-950/50 border border-slate-800/70 p-2.5">
+        <div className="rounded-xl bg-[#151320]/65 border border-[#332f4a] p-2.5">
           <span className="text-slate-400 block truncate">{settings.userAName} Paid</span>
-          <span className="text-sm sm:text-base font-bold text-emerald-400 mt-0.5 block">
+          <span className="text-sm sm:text-base font-bold text-[#a7f3d0] mt-0.5 block">
             {formatMoney(userAPaid, settings.baseCurrency)}
           </span>
-          <span className="text-[11px] text-slate-500 block">
+          <span className="text-[11px] text-slate-400 block">
             Share: {formatMoney(userAFairShare, settings.baseCurrency)}
           </span>
         </div>
 
-        <div className="rounded-xl bg-slate-950/50 border border-slate-800/70 p-2.5">
+        <div className="rounded-xl bg-[#151320]/65 border border-[#332f4a] p-2.5">
           <span className="text-slate-400 block truncate">{settings.userBName} Paid</span>
-          <span className="text-sm sm:text-base font-bold text-indigo-400 mt-0.5 block">
+          <span className="text-sm sm:text-base font-bold text-[#fbcfe8] mt-0.5 block">
             {formatMoney(userBPaid, settings.baseCurrency)}
           </span>
-          <span className="text-[11px] text-slate-500 block">
+          <span className="text-[11px] text-slate-400 block">
             Share: {formatMoney(userBFairShare, settings.baseCurrency)}
           </span>
         </div>
