@@ -14,7 +14,8 @@ export const DEFAULT_ACCOUNTS: AccountGroup[] = [
     id: 'everyday',
     name: 'Everyday',
     emoji: '🏠',
-    createdAt: 1
+    createdAt: 1,
+    updatedAt: 1
   }
 ];
 
@@ -28,11 +29,25 @@ export const ACCOUNT_EMOJIS = [
   '🚗',
   '🛋️',
   '🐶',
+  '🐱',
   '🎄',
   '🏕️',
   '💍',
   '🎟️',
-  '💼'
+  '💼',
+  '🏥',
+  '🎁',
+  '🍷',
+  '☕',
+  '🏋️',
+  '🎮',
+  '👶',
+  '🎓',
+  '🛠️',
+  '💡',
+  '🏦',
+  '🌴',
+  '⛷️'
 ];
 
 export const CATEGORIES: CategoryMeta[] = [
@@ -173,6 +188,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   baseCurrency: 'EUR',
   defaultSplitA: 50,
   accounts: DEFAULT_ACCOUNTS,
+  accountsUpdatedAt: 1,
   activeAccountId: 'everyday',
   scriptUrl: '',
   secretKey: '',

@@ -8,7 +8,7 @@ import {
   Table2
 } from 'lucide-react';
 import { AccountGroup, AppSettings, Expense, ExpenseFilters, PartnerId } from './types';
-import { DEFAULT_FILTERS } from './lib/constants';
+import { DEFAULT_ACCOUNTS, DEFAULT_FILTERS } from './lib/constants';
 import {
   calculateSummary,
   computeUserAShare,
@@ -207,55 +207,49 @@ export const App: React.FC = () => {
     [expenses]
   );
 
-  // Handlers
+  // Account Handlers (Create, Edit Name/Icon, Delete with Expenses)
   const handleSelectAccount = (accountId: string) => {
     const next: AppSettings = { ...settings, activeAccountId: accountId };
     setSettings(next);
     saveSettings(next);
   };
 
-  const handleUpdateAccounts = async (
-    nextAccounts: AccountGroup[],
-    nextActiveId?: string,
-    renamedAccount?: { id: string; name: string }
-  ) => {
-    const validIds = new Set(nextAccounts.map((a) => a.id));
-    const fallbackAcc = nextAccounts[0];
+  const handleCreateAccount = (created: AccountGroup) => {
     const now = Date.now();
+    const nextAccounts = [...settings.accounts, created];
+    const nextSettings: AppSettings = {
+      ...settings,
+      accounts: nextAccounts,
+      accountsUpdatedAt: now,
+      activeAccountId: created.id
+    };
+    setSettings(nextSettings);
+    saveSettings(nextSettings);
 
-    let updatedExpenses = expenses;
-    let expensesChanged = false;
-
-    if (renamedAccount) {
-      updatedExpenses = expenses.map((e) => {
-        if ((e.accountId || 'everyday') === renamedAccount.id) {
-          expensesChanged = true;
-          return {
-            ...e,
-            accountName: renamedAccount.name,
-            updatedAt: now,
-            dirty: true
-          };
-        }
-        return e;
-      });
-    } else {
-      // Check if an account was deleted and reassign orphaned expenses to fallbackAcc
-      updatedExpenses = expenses.map((e) => {
-        const accId = e.accountId || 'everyday';
-        if (!validIds.has(accId)) {
-          expensesChanged = true;
-          return {
-            ...e,
-            accountId: fallbackAcc.id,
-            accountName: fallbackAcc.name,
-            updatedAt: now,
-            dirty: true
-          };
-        }
-        return e;
-      });
+    if (nextSettings.scriptUrl.trim()) {
+      triggerSync(expenses, nextSettings, false);
     }
+  };
+
+  const handleEditAccount = async (updated: AccountGroup) => {
+    const now = Date.now();
+    const nextAccounts = settings.accounts.map((a) =>
+      a.id === updated.id ? { ...updated, updatedAt: now } : a
+    );
+
+    let expensesChanged = false;
+    const updatedExpenses = expenses.map((e) => {
+      if ((e.accountId || 'everyday') === updated.id && e.accountName !== updated.name) {
+        expensesChanged = true;
+        return {
+          ...e,
+          accountName: updated.name,
+          updatedAt: now,
+          dirty: true
+        };
+      }
+      return e;
+    });
 
     if (expensesChanged) {
       setExpenses(updatedExpenses);
@@ -265,7 +259,7 @@ export const App: React.FC = () => {
     const nextSettings: AppSettings = {
       ...settings,
       accounts: nextAccounts,
-      activeAccountId: nextActiveId || settings.activeAccountId
+      accountsUpdatedAt: now
     };
     setSettings(nextSettings);
     saveSettings(nextSettings);
@@ -275,6 +269,61 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleDeleteAccount = async (accountId: string) => {
+    const now = Date.now();
+
+    // Soft-delete all expenses belonging to the deleted account so they also delete on the Google Sheet
+    let expensesChanged = false;
+    const updatedExpenses = expenses.map((e) => {
+      if (!e.isDeleted && (e.accountId || 'everyday') === accountId) {
+        expensesChanged = true;
+        return {
+          ...e,
+          isDeleted: true,
+          updatedAt: now,
+          dirty: true
+        };
+      }
+      return e;
+    });
+
+    if (expensesChanged) {
+      setExpenses(updatedExpenses);
+      await saveExpenses(updatedExpenses);
+    }
+
+    const remaining = settings.accounts.filter((a) => a.id !== accountId);
+    const nextAccounts: AccountGroup[] =
+      remaining.length > 0
+        ? remaining
+        : [
+            {
+              ...DEFAULT_ACCOUNTS[0],
+              createdAt: now,
+              updatedAt: now
+            }
+          ];
+
+    const nextActiveId =
+      settings.activeAccountId === accountId
+        ? nextAccounts[0].id
+        : settings.activeAccountId;
+
+    const nextSettings: AppSettings = {
+      ...settings,
+      accounts: nextAccounts,
+      accountsUpdatedAt: now,
+      activeAccountId: nextActiveId
+    };
+    setSettings(nextSettings);
+    saveSettings(nextSettings);
+
+    if (nextSettings.scriptUrl.trim()) {
+      triggerSync(updatedExpenses, nextSettings, false);
+    }
+  };
+
+  // Expense Handlers
   const handleSaveExpense = async (expense: Expense) => {
     const exists = expenses.some((e) => e.id === expense.id);
     const next = exists
@@ -551,7 +600,9 @@ export const App: React.FC = () => {
           settings={settings}
           expenses={expenses}
           onSelectAccount={handleSelectAccount}
-          onUpdateAccounts={handleUpdateAccounts}
+          onCreateAccount={handleCreateAccount}
+          onEditAccount={handleEditAccount}
+          onDeleteAccount={handleDeleteAccount}
         />
 
         {/* Top Balance & Google Sheet Sync Card */}

@@ -105,8 +105,9 @@ function setupSheet() {
     cfgSheet.appendRow(['defaultSplitA', '50']);
     cfgSheet.appendRow([
       'accountsJson',
-      JSON.stringify([{ id: 'everyday', name: 'Everyday', emoji: '🏠', createdAt: 1 }])
+      JSON.stringify([{ id: 'everyday', name: 'Everyday', emoji: '🏠', createdAt: 1, updatedAt: 1 }])
     ]);
+    cfgSheet.appendRow(['accountsUpdatedAt', '1']);
   }
 
   // 3. Live Google Drive Dashboard Sheet (for viewing directly in Google Sheets!)
@@ -191,8 +192,8 @@ function syncConfig(cfgSheet, incomingConfig) {
   }
 
   if (incomingConfig && typeof incomingConfig === 'object') {
-    const allowedKeys = ['userAName', 'userBName', 'baseCurrency', 'defaultSplitA', 'accountsJson'];
-    allowedKeys.forEach((k) => {
+    const basicKeys = ['userAName', 'userBName', 'baseCurrency', 'defaultSplitA'];
+    basicKeys.forEach((k) => {
       if (incomingConfig[k] !== undefined && incomingConfig[k] !== null && String(incomingConfig[k]).trim() !== '') {
         const val = String(incomingConfig[k]).trim();
         if (map[k]) {
@@ -204,6 +205,28 @@ function syncConfig(cfgSheet, incomingConfig) {
         }
       }
     });
+
+    // Only overwrite accountsJson if incoming accountsUpdatedAt >= existing accountsUpdatedAt
+    const existingAccUpdated = Number(map.accountsUpdatedAt && map.accountsUpdatedAt.value) || 0;
+    const incomingAccUpdated = Number(incomingConfig.accountsUpdatedAt) || 0;
+    if (incomingConfig.accountsJson && incomingAccUpdated >= existingAccUpdated) {
+      const jsonVal = String(incomingConfig.accountsJson);
+      const tsVal = String(incomingAccUpdated || Date.now());
+      if (map.accountsJson) {
+        cfgSheet.getRange(map.accountsJson.rowIndex, 2).setValue(jsonVal);
+        map.accountsJson.value = jsonVal;
+      } else {
+        cfgSheet.appendRow(['accountsJson', jsonVal]);
+        map.accountsJson = { value: jsonVal, rowIndex: cfgSheet.getLastRow() };
+      }
+      if (map.accountsUpdatedAt) {
+        cfgSheet.getRange(map.accountsUpdatedAt.rowIndex, 2).setValue(tsVal);
+        map.accountsUpdatedAt.value = tsVal;
+      } else {
+        cfgSheet.appendRow(['accountsUpdatedAt', tsVal]);
+        map.accountsUpdatedAt = { value: tsVal, rowIndex: cfgSheet.getLastRow() };
+      }
+    }
   }
 
   const result = {};

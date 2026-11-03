@@ -20,6 +20,7 @@ export interface AccountGroup {
   name: string;
   emoji: string;
   createdAt: number;
+  updatedAt?: number;
   isArchived?: boolean;
 }
 
@@ -50,6 +51,7 @@ export interface AppSettings {
   baseCurrency: string;
   defaultSplitA: number; // Default % share for User A (default 50)
   accounts: AccountGroup[]; // Separate Tricount-style accounts/groups in the same Sheet
+  accountsUpdatedAt?: number; // Epoch ms when accounts list was last created/edited/deleted
   activeAccountId: string; // 'everyday', custom account id, or 'all'
   scriptUrl: string; // Google Apps Script Web App URL
   secretKey: string; // Shared passphrase for the script

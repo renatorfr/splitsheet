@@ -94,10 +94,11 @@ export function normalizeAccounts(accounts?: AccountGroup[]): AccountGroup[] {
   for (const acc of accounts) {
     if (acc && acc.id && acc.name) {
       map.set(acc.id, {
-        id: acc.id,
-        name: acc.name,
-        emoji: acc.emoji || '🏠',
+        id: String(acc.id),
+        name: String(acc.name),
+        emoji: String(acc.emoji || '🏠'),
         createdAt: Number(acc.createdAt) || 1,
+        updatedAt: Number(acc.updatedAt) || Number(acc.createdAt) || 1,
         isArchived: Boolean(acc.isArchived)
       });
     }
@@ -123,6 +124,7 @@ export function loadSettings(): AppSettings {
       ...DEFAULT_SETTINGS,
       ...parsed,
       accounts,
+      accountsUpdatedAt: Number(parsed.accountsUpdatedAt) || 1,
       activeAccountId
     };
   } catch {
@@ -152,6 +154,7 @@ export function createPartnerInviteUrl(
     baseCurrency: settings.baseCurrency,
     defaultSplitA: settings.defaultSplitA,
     accounts: settings.accounts,
+    accountsUpdatedAt: settings.accountsUpdatedAt || Date.now(),
     activeAccountId: settings.activeAccountId,
     scriptUrl: settings.scriptUrl,
     secretKey: settings.secretKey,
@@ -221,7 +224,7 @@ export async function syncWithGoogleSheet(
     ({ dirty, ...clean }) => {
       const accId = clean.accountId || 'everyday';
       const accName =
-        clean.accountName || accountNameById.get(accId) || 'Everyday';
+        accountNameById.get(accId) || clean.accountName || 'Everyday';
       return {
         ...clean,
         accountId: accId,
@@ -246,7 +249,8 @@ export async function syncWithGoogleSheet(
           userBName: settings.userBName,
           baseCurrency: settings.baseCurrency,
           defaultSplitA: String(settings.defaultSplitA),
-          accountsJson: JSON.stringify(settings.accounts)
+          accountsJson: JSON.stringify(settings.accounts),
+          accountsUpdatedAt: String(settings.accountsUpdatedAt || 1)
         }
       })
     });
@@ -268,6 +272,28 @@ export async function syncWithGoogleSheet(
       };
     }
 
+    // Resolve accounts list using timestamp comparison (so renames, icon edits, and deletions sync across devices)
+    const localAccUpdatedAt = Number(settings.accountsUpdatedAt) || 1;
+    const remoteAccUpdatedAt = Number(data.config?.accountsUpdatedAt) || 0;
+
+    let resolvedAccounts = normalizeAccounts(settings.accounts);
+    let resolvedAccUpdatedAt = Math.max(localAccUpdatedAt, remoteAccUpdatedAt);
+
+    if (data.config?.accountsJson && remoteAccUpdatedAt > localAccUpdatedAt) {
+      try {
+        const parsedRemote = JSON.parse(data.config.accountsJson);
+        if (Array.isArray(parsedRemote) && parsedRemote.length > 0) {
+          resolvedAccounts = normalizeAccounts(parsedRemote);
+        }
+      } catch {
+        // ignore invalid remote json
+      }
+    }
+
+    const resolvedNameById = new Map<string, string>(
+      resolvedAccounts.map((a) => [a.id, a.name])
+    );
+
     const remoteExpenses: Expense[] = Array.isArray(data.expenses) ? data.expenses : [];
     const mergedMap = new Map<string, Expense>();
 
@@ -277,7 +303,7 @@ export async function syncWithGoogleSheet(
       mergedMap.set(loc.id, {
         ...loc,
         accountId: accId,
-        accountName: loc.accountName || accountNameById.get(accId) || 'Everyday',
+        accountName: resolvedNameById.get(accId) || loc.accountName || 'Everyday',
         dirty: false
       });
     }
@@ -289,7 +315,8 @@ export async function syncWithGoogleSheet(
       if (!existing || (Number(rem.updatedAt) || 0) >= (Number(existing.updatedAt) || 0)) {
         const accId = String(rem.accountId || existing?.accountId || 'everyday').trim() || 'everyday';
         const accName =
-          String(rem.accountName || existing?.accountName || accountNameById.get(accId) || 'Everyday').trim() ||
+          resolvedNameById.get(accId) ||
+          String(rem.accountName || existing?.accountName || 'Everyday').trim() ||
           'Everyday';
         mergedMap.set(rem.id, {
           ...rem,
@@ -308,48 +335,6 @@ export async function syncWithGoogleSheet(
 
     const mergedList = Array.from(mergedMap.values());
 
-    // Merge local accounts + remote accountsJson + any accounts discovered on transaction rows
-    const mergedAccountsMap = new Map<string, AccountGroup>();
-    for (const acc of settings.accounts) {
-      mergedAccountsMap.set(acc.id, acc);
-    }
-
-    if (data.config?.accountsJson) {
-      try {
-        const parsedRemoteAccs = JSON.parse(data.config.accountsJson);
-        if (Array.isArray(parsedRemoteAccs)) {
-          for (const ra of parsedRemoteAccs) {
-            if (ra && ra.id && ra.name && !mergedAccountsMap.has(ra.id)) {
-              mergedAccountsMap.set(ra.id, {
-                id: String(ra.id),
-                name: String(ra.name),
-                emoji: String(ra.emoji || '🏠'),
-                createdAt: Number(ra.createdAt) || Date.now(),
-                isArchived: Boolean(ra.isArchived)
-              });
-            }
-          }
-        }
-      } catch {
-        // ignore invalid remote json
-      }
-    }
-
-    for (const exp of mergedList) {
-      if (exp.isDeleted) continue;
-      const accId = exp.accountId || 'everyday';
-      if (!mergedAccountsMap.has(accId)) {
-        mergedAccountsMap.set(accId, {
-          id: accId,
-          name: exp.accountName || accId,
-          emoji: '📁',
-          createdAt: Date.now()
-        });
-      }
-    }
-
-    const mergedAccounts = normalizeAccounts(Array.from(mergedAccountsMap.values()));
-
     return {
       ok: true,
       expenses: mergedList,
@@ -361,7 +346,8 @@ export async function syncWithGoogleSheet(
         userBName: data.config?.userBName || settings.userBName,
         baseCurrency: data.config?.baseCurrency || settings.baseCurrency,
         defaultSplitA: Number(data.config?.defaultSplitA) || settings.defaultSplitA,
-        accounts: mergedAccounts
+        accounts: resolvedAccounts,
+        accountsUpdatedAt: resolvedAccUpdatedAt
       }
     };
   } catch (err: unknown) {
