@@ -85,7 +85,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({
           exp.currency && exp.currency.toUpperCase() !== settings.baseCurrency.toUpperCase();
 
         const isSettlement = exp.splitType === 'settlement';
-        const acc = accountById.get(exp.accountId || 'everyday');
+        const acc = exp.accountId ? accountById.get(exp.accountId) : undefined;
 
         let splitLabel = '50/50 split';
         if (isSettlement) {

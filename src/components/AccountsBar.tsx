@@ -36,8 +36,8 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
   const [newName, setNewName] = useState('');
   const [newEmoji, setNewEmoji] = useState('✈️');
 
-  // Edit form state (when editing a specific account)
-  const [editingAccount, setEditingAccount] = useState<AccountGroup | null>(null);
+  // Edit form state (when editing any account, including the initial one)
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editEmoji, setEditEmoji] = useState('🏠');
 
@@ -45,15 +45,22 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
   const [confirmDeleteAccount, setConfirmDeleteAccount] =
     useState<AccountGroup | null>(null);
 
+  const editingAccount = React.useMemo(
+    () =>
+      editingId ? settings.accounts.find((a) => a.id === editingId) || null : null,
+    [editingId, settings.accounts]
+  );
+
   // Compute per-account mini net balances and expense counts
   const statsByAccount = React.useMemo(() => {
     const map = new Map<string, { net: number; count: number; totalSpend: number }>();
+    const defaultAccId = settings.accounts[0]?.id || '';
     for (const acc of settings.accounts) {
       map.set(acc.id, { net: 0, count: 0, totalSpend: 0 });
     }
     for (const exp of expenses) {
       if (exp.isDeleted) continue;
-      const accId = exp.accountId || 'everyday';
+      const accId = exp.accountId || defaultAccId;
       const sub = calculateSummary([exp]);
       const prev = map.get(accId) || { net: 0, count: 0, totalSpend: 0 };
       prev.net = round2(prev.net + sub.netBalanceA);
@@ -74,7 +81,7 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
 
   const openEditForAccount = (acc: AccountGroup) => {
     setConfirmDeleteAccount(null);
-    setEditingAccount(acc);
+    setEditingId(acc.id);
     setEditName(acc.name);
     setEditEmoji(acc.emoji || '🏠');
     setIsManageOpen(true);
@@ -125,7 +132,8 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
     };
 
     onEditAccount(updated);
-    setEditingAccount(null);
+    setEditingId(null);
+    setIsManageOpen(false);
   };
 
   const handleConfirmDelete = () => {
@@ -133,8 +141,8 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
     const targetId = confirmDeleteAccount.id;
     onDeleteAccount(targetId);
     setConfirmDeleteAccount(null);
-    if (editingAccount?.id === targetId) {
-      setEditingAccount(null);
+    if (editingId === targetId) {
+      setEditingId(null);
     }
   };
 
@@ -149,42 +157,76 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
             const absNet = Math.abs(round2(stats?.net || 0));
 
             return (
-              <button
+              <div
                 key={acc.id}
-                type="button"
-                onClick={() => onSelectAccount(acc.id)}
-                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl text-xs sm:text-sm font-semibold whitespace-nowrap border transition cursor-pointer ${
+                className={`inline-flex items-center rounded-2xl text-xs sm:text-sm font-semibold whitespace-nowrap border transition ${
                   active
                     ? 'bg-[#c4b5fd] text-[#181622] border-[#ddd6fe] shadow-md shadow-[#c4b5fd]/15'
                     : 'bg-[#1e1b2b]/90 text-slate-300 border-[#332f4a] hover:border-[#c4b5fd]/50 hover:text-white'
                 }`}
               >
-                <span className="text-base leading-none">{acc.emoji}</span>
-                <span>{acc.name}</span>
-                {absNet >= 0.01 ? (
-                  <span
-                    className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold ${
-                      active
-                        ? 'bg-[#181622]/20 text-[#181622]'
-                        : 'bg-[#2a263d] text-[#ddd6fe]'
-                    }`}
-                  >
-                    {formatMoney(absNet, settings.baseCurrency)}
-                  </span>
-                ) : (
-                  (stats?.count || 0) > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (active) {
+                      // Tapping an already-active group pill opens Edit directly!
+                      openEditForAccount(acc);
+                    } else {
+                      onSelectAccount(acc.id);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 pl-3.5 pr-2 py-2 cursor-pointer"
+                  title={
+                    active
+                      ? `Tap to edit or delete "${acc.name}"`
+                      : `Switch to "${acc.name}"`
+                  }
+                >
+                  <span className="text-base leading-none">{acc.emoji}</span>
+                  <span>{acc.name}</span>
+                  {absNet >= 0.01 ? (
                     <span
-                      className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                      className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold ${
                         active
-                          ? 'bg-[#181622]/15 text-[#181622]'
-                          : 'bg-[#a7f3d0]/15 text-[#a7f3d0]'
+                          ? 'bg-[#181622]/20 text-[#181622]'
+                          : 'bg-[#2a263d] text-[#ddd6fe]'
                       }`}
                     >
-                      ✓
+                      {formatMoney(absNet, settings.baseCurrency)}
                     </span>
-                  )
-                )}
-              </button>
+                  ) : (
+                    (stats?.count || 0) > 0 && (
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                          active
+                            ? 'bg-[#181622]/15 text-[#181622]'
+                            : 'bg-[#a7f3d0]/15 text-[#a7f3d0]'
+                        }`}
+                      >
+                        ✓
+                      </span>
+                    )
+                  )}
+                </button>
+
+                {/* Inline Edit Icon right inside every pill */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEditForAccount(acc);
+                  }}
+                  className={`pr-2.5 pl-1 py-2 rounded-r-2xl transition cursor-pointer ${
+                    active
+                      ? 'text-[#181622]/70 hover:text-[#181622]'
+                      : 'text-slate-400 hover:text-[#c4b5fd]'
+                  }`}
+                  title={`Edit or delete "${acc.name}"`}
+                  aria-label={`Edit ${acc.name}`}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              </div>
             );
           })}
 
@@ -201,12 +243,12 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
               title="View and search across all accounts combined"
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>All Accounts</span>
+              <span>All Groups</span>
             </button>
           )}
         </div>
 
-        {/* Right Action Buttons: Quick Edit Active Account + Manage/Add Accounts */}
+        {/* Right Action Buttons: Edit Active Group + Add/Manage Groups */}
         <div className="flex items-center gap-1.5 shrink-0">
           {activeAccountObj && (
             <button
@@ -216,22 +258,22 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
               title={`Edit or delete "${activeAccountObj.name}"`}
             >
               <Pencil className="w-3.5 h-3.5 text-[#c4b5fd]" />
-              <span className="hidden sm:inline">Edit Group</span>
+              <span className="hidden sm:inline">Edit</span>
             </button>
           )}
 
           <button
             type="button"
             onClick={() => {
-              setEditingAccount(null);
+              setEditingId(null);
               setConfirmDeleteAccount(null);
               setIsManageOpen(true);
             }}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-[#1e1b2b] hover:bg-[#282438] text-[#ddd6fe] border border-[#332f4a] text-xs font-semibold transition cursor-pointer"
-            title="Add, edit, or delete expense accounts/groups"
+            title="Add, edit, or delete expense groups"
           >
             <FolderPlus className="w-4 h-4 text-[#c4b5fd]" />
-            <span className="hidden sm:inline">Groups</span>
+            <span>{settings.accounts.length === 0 ? '+ New Group' : 'Groups'}</span>
           </button>
         </div>
       </div>
@@ -244,18 +286,18 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
               <div>
                 <h3 className="text-base sm:text-lg font-bold text-white">
                   {editingAccount
-                    ? `Edit "${editingAccount.name}"`
-                    : 'Manage Expense Groups / Accounts'}
+                    ? `Edit Group "${editingAccount.name}"`
+                    : 'Manage Expense Groups'}
                 </h3>
                 <p className="text-xs text-slate-400">
-                  Rename, change icons, or delete groups — synced to your single Google Sheet
+                  Rename, change icons, or delete any group — synced to your single Google Sheet
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => {
                   setIsManageOpen(false);
-                  setEditingAccount(null);
+                  setEditingId(null);
                   setConfirmDeleteAccount(null);
                 }}
                 className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#2a263d] transition cursor-pointer"
@@ -337,10 +379,10 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
                     </span>
                     <button
                       type="button"
-                      onClick={() => setEditingAccount(null)}
+                      onClick={() => setEditingId(null)}
                       className="text-xs text-slate-400 hover:text-white cursor-pointer"
                     >
-                      ← Back to all groups
+                      + Create new group instead
                     </button>
                   </div>
 
@@ -410,7 +452,7 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => setEditingAccount(null)}
+                        onClick={() => setEditingId(null)}
                         className="px-3.5 py-2 rounded-xl bg-[#2a263d] hover:bg-[#35304d] text-slate-300 text-xs font-semibold transition cursor-pointer"
                       >
                         Cancel
@@ -485,67 +527,73 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
                 <span className="block text-xs font-bold uppercase tracking-wider text-slate-400">
                   Your Groups ({settings.accounts.length})
                 </span>
-                {settings.accounts.map((acc) => {
-                  const stats = statsByAccount.get(acc.id);
-                  const isCurrentlyEditing = editingAccount?.id === acc.id;
+                {settings.accounts.length === 0 ? (
+                  <div className="p-4 rounded-2xl bg-[#151320] border border-[#332f4a] text-center text-xs text-slate-400">
+                    No groups yet. Create your first group above!
+                  </div>
+                ) : (
+                  settings.accounts.map((acc) => {
+                    const stats = statsByAccount.get(acc.id);
+                    const isCurrentlyEditing = editingId === acc.id;
 
-                  return (
-                    <div
-                      key={acc.id}
-                      className={`p-3 rounded-2xl border flex items-center justify-between gap-2 transition ${
-                        isCurrentlyEditing
-                          ? 'bg-[#c4b5fd]/10 border-[#c4b5fd]'
-                          : 'bg-[#151320] border-[#332f4a]'
-                      }`}
-                    >
+                    return (
                       <div
-                        onClick={() => {
-                          onSelectAccount(acc.id);
-                          setIsManageOpen(false);
-                        }}
-                        className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                        key={acc.id}
+                        className={`p-3 rounded-2xl border flex items-center justify-between gap-2 transition ${
+                          isCurrentlyEditing
+                            ? 'bg-[#c4b5fd]/10 border-[#c4b5fd]'
+                            : 'bg-[#151320] border-[#332f4a]'
+                        }`}
                       >
-                        <span className="w-10 h-10 rounded-xl bg-[#1e1b2b] border border-[#332f4a] flex items-center justify-center text-xl shrink-0">
-                          {acc.emoji}
-                        </span>
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-white truncate">
-                            {acc.name}
-                          </div>
-                          <div className="text-[11px] text-slate-400">
-                            {stats?.count || 0}{' '}
-                            {stats?.count === 1 ? 'expense' : 'expenses'} • Net:{' '}
-                            {formatMoney(
-                              Math.abs(stats?.net || 0),
-                              settings.baseCurrency
-                            )}
+                        <div
+                          onClick={() => {
+                            onSelectAccount(acc.id);
+                            setIsManageOpen(false);
+                          }}
+                          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                        >
+                          <span className="w-10 h-10 rounded-xl bg-[#1e1b2b] border border-[#332f4a] flex items-center justify-center text-xl shrink-0">
+                            {acc.emoji}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-white truncate">
+                              {acc.name}
+                            </div>
+                            <div className="text-[11px] text-slate-400">
+                              {stats?.count || 0}{' '}
+                              {stats?.count === 1 ? 'expense' : 'expenses'} • Net:{' '}
+                              {formatMoney(
+                                Math.abs(stats?.net || 0),
+                                settings.baseCurrency
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => openEditForAccount(acc)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#1e1b2b] hover:bg-[#2a263d] text-[#ddd6fe] border border-[#332f4a] text-xs font-medium cursor-pointer"
-                          title="Edit name & icon"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                          <span>Edit</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteAccount(acc)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#fda4af]/10 hover:bg-[#fda4af]/20 text-[#fda4af] border border-[#fda4af]/25 text-xs font-medium cursor-pointer"
-                          title="Delete group"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Delete</span>
-                        </button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => openEditForAccount(acc)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#1e1b2b] hover:bg-[#2a263d] text-[#ddd6fe] border border-[#332f4a] text-xs font-medium cursor-pointer"
+                            title="Edit name & icon"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            <span>Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteAccount(acc)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#fda4af]/10 hover:bg-[#fda4af]/20 text-[#fda4af] border border-[#fda4af]/25 text-xs font-medium cursor-pointer"
+                            title="Delete group"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>

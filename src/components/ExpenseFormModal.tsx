@@ -35,7 +35,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
   const defaultAccountId =
     settings.activeAccountId !== 'all'
       ? settings.activeAccountId
-      : settings.accounts[0]?.id || 'everyday';
+      : settings.accounts[0]?.id || 'default';
 
   const [title, setTitle] = useState('');
   const [amountStr, setAmountStr] = useState('');
@@ -183,8 +183,8 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
       notes: notes.trim(),
       isDeleted: false,
       updatedAt: Date.now(),
-      accountId: selectedAccount?.id || 'everyday',
-      accountName: selectedAccount?.name || 'Everyday',
+      accountId: selectedAccount?.id || accountId || 'default',
+      accountName: selectedAccount?.name || 'General',
       dirty: true
     };
 

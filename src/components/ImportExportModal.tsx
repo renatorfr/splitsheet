@@ -25,7 +25,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
   const defaultTargetId =
     settings.activeAccountId !== 'all'
       ? settings.activeAccountId
-      : settings.accounts[0]?.id || 'everyday';
+      : settings.accounts[0]?.id || 'default';
 
   const [targetAccountId, setTargetAccountId] = useState(defaultTargetId);
   const [csvText, setCsvText] = useState('');
@@ -212,7 +212,9 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-[#ddd6fe]">
                     Ready to import {previewItems.length} expenses into{' '}
-                    {settings.accounts.find((a) => a.id === targetAccountId)?.name || 'Everyday'}
+                    {settings.accounts.find((a) => a.id === targetAccountId)?.name ||
+                      settings.accounts[0]?.name ||
+                      'General'}
                   </span>
                   <button
                     type="button"

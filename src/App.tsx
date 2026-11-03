@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BarChart3,
   FileSpreadsheet,
@@ -8,7 +8,7 @@ import {
   Table2
 } from 'lucide-react';
 import { AccountGroup, AppSettings, Expense, ExpenseFilters, PartnerId } from './types';
-import { DEFAULT_ACCOUNTS, DEFAULT_FILTERS } from './lib/constants';
+import { DEFAULT_FILTERS } from './lib/constants';
 import {
   calculateSummary,
   computeUserAShare,
@@ -58,6 +58,11 @@ export const App: React.FC = () => {
   const [syncError, setSyncError] = useState<string | null>(null);
   const [inviteBanner, setInviteBanner] = useState<string | null>(null);
 
+  // Track latest settings & sync sequence to prevent stale in-flight syncs from overwriting edits
+  const latestSettingsRef = useRef<AppSettings>(settings);
+  latestSettingsRef.current = settings;
+  const syncSeqRef = useRef(0);
+
   // Hydrate from IndexedDB + check URL hash for partner invite link
   useEffect(() => {
     let mounted = true;
@@ -70,7 +75,7 @@ export const App: React.FC = () => {
     const invite = consumePartnerInviteFromHash();
     if (invite) {
       setSettings((prev) => {
-        const accounts = normalizeAccounts(invite.accounts || prev.accounts);
+        const accounts = normalizeAccounts(invite.accounts ?? prev.accounts);
         const merged: AppSettings = {
           ...prev,
           ...invite,
@@ -102,6 +107,7 @@ export const App: React.FC = () => {
       pushAll: boolean = false
     ) => {
       if (!currentSettings.scriptUrl.trim()) return;
+      const mySeq = ++syncSeqRef.current;
       setIsSyncing(true);
       setSyncError(null);
 
@@ -110,6 +116,11 @@ export const App: React.FC = () => {
         currentSettings,
         pushAll
       );
+
+      // Ignore out-of-order responses if a newer sync or edit happened while in flight
+      if (mySeq !== syncSeqRef.current) {
+        return;
+      }
 
       setIsSyncing(false);
       if (!result.ok) {
@@ -121,19 +132,29 @@ export const App: React.FC = () => {
       await saveExpenses(result.expenses);
 
       setSettings((prev) => {
-        const nextAccounts = normalizeAccounts(
-          result.remoteConfig?.accounts || prev.accounts
-        );
+        const prevUpdatedAt = Number(prev.accountsUpdatedAt) || 1;
+        const remoteUpdatedAt = Number(result.remoteConfig?.accountsUpdatedAt) || 0;
+
+        // Only adopt remote accounts if the server's timestamp is strictly newer than our local edits
+        const nextAccounts =
+          remoteUpdatedAt > prevUpdatedAt && result.remoteConfig?.accounts
+            ? normalizeAccounts(result.remoteConfig.accounts)
+            : prev.accounts;
+
         const nextActiveId =
           prev.activeAccountId === 'all' ||
           nextAccounts.some((a) => a.id === prev.activeAccountId)
             ? prev.activeAccountId
-            : nextAccounts[0].id;
+            : nextAccounts[0]?.id || 'all';
 
         const next: AppSettings = {
           ...prev,
-          ...(result.remoteConfig || {}),
+          userAName: result.remoteConfig?.userAName || prev.userAName,
+          userBName: result.remoteConfig?.userBName || prev.userBName,
+          baseCurrency: result.remoteConfig?.baseCurrency || prev.baseCurrency,
+          defaultSplitA: result.remoteConfig?.defaultSplitA || prev.defaultSplitA,
           accounts: nextAccounts,
+          accountsUpdatedAt: Math.max(prevUpdatedAt, remoteUpdatedAt),
           activeAccountId: nextActiveId,
           sheetUrl: result.sheetUrl || prev.sheetUrl,
           sheetName: result.sheetName || prev.sheetName,
@@ -149,34 +170,39 @@ export const App: React.FC = () => {
   // Initial sync on load & when network comes back online
   useEffect(() => {
     if (settings.scriptUrl.trim()) {
-      triggerSync(expenses, settings, false);
+      triggerSync(expenses, latestSettingsRef.current, false);
     }
     const onOnline = () => {
-      if (settings.scriptUrl.trim()) {
-        triggerSync(expenses, settings, false);
+      if (latestSettingsRef.current.scriptUrl.trim()) {
+        triggerSync(expenses, latestSettingsRef.current, false);
       }
     };
     window.addEventListener('online', onOnline);
     return () => window.removeEventListener('online', onOnline);
   }, [settings.scriptUrl]);
 
+  const fallbackAccountId = settings.accounts[0]?.id || '';
+
   // Scope expenses by the currently selected Account (or 'all')
   const accountScopedExpenses = useMemo(() => {
     const nonDeleted = expenses.filter((e) => !e.isDeleted);
-    if (settings.activeAccountId === 'all') {
+    if (settings.activeAccountId === 'all' || settings.accounts.length === 0) {
       return nonDeleted;
     }
     return nonDeleted.filter(
-      (e) => (e.accountId || 'everyday') === settings.activeAccountId
+      (e) => (e.accountId || fallbackAccountId) === settings.activeAccountId
     );
-  }, [expenses, settings.activeAccountId]);
+  }, [expenses, settings.activeAccountId, settings.accounts.length, fallbackAccountId]);
 
   const activeAccountLabel = useMemo(() => {
+    if (settings.accounts.length === 0) {
+      return 'No Active Group';
+    }
     if (settings.activeAccountId === 'all') {
-      return '✨ All Accounts';
+      return '✨ All Groups';
     }
     const found = settings.accounts.find((a) => a.id === settings.activeAccountId);
-    return found ? `${found.emoji} ${found.name}` : '🏠 Everyday';
+    return found ? `${found.emoji} ${found.name}` : '✨ All Groups';
   }, [settings.accounts, settings.activeAccountId]);
 
   const overallSummary = useMemo(
@@ -207,7 +233,7 @@ export const App: React.FC = () => {
     [expenses]
   );
 
-  // Account Handlers (Create, Edit Name/Icon, Delete with Expenses)
+  // Account Handlers (Create, Edit Name/Icon, Delete with Expenses — no hardcoded Everyday!)
   const handleSelectAccount = (accountId: string) => {
     const next: AppSettings = { ...settings, activeAccountId: accountId };
     setSettings(next);
@@ -239,10 +265,12 @@ export const App: React.FC = () => {
 
     let expensesChanged = false;
     const updatedExpenses = expenses.map((e) => {
-      if ((e.accountId || 'everyday') === updated.id && e.accountName !== updated.name) {
+      const expAccId = e.accountId || fallbackAccountId;
+      if (expAccId === updated.id && e.accountName !== updated.name) {
         expensesChanged = true;
         return {
           ...e,
+          accountId: updated.id,
           accountName: updated.name,
           updatedAt: now,
           dirty: true
@@ -275,7 +303,8 @@ export const App: React.FC = () => {
     // Soft-delete all expenses belonging to the deleted account so they also delete on the Google Sheet
     let expensesChanged = false;
     const updatedExpenses = expenses.map((e) => {
-      if (!e.isDeleted && (e.accountId || 'everyday') === accountId) {
+      const expAccId = e.accountId || fallbackAccountId;
+      if (!e.isDeleted && expAccId === accountId) {
         expensesChanged = true;
         return {
           ...e,
@@ -292,21 +321,12 @@ export const App: React.FC = () => {
       await saveExpenses(updatedExpenses);
     }
 
-    const remaining = settings.accounts.filter((a) => a.id !== accountId);
-    const nextAccounts: AccountGroup[] =
-      remaining.length > 0
-        ? remaining
-        : [
-            {
-              ...DEFAULT_ACCOUNTS[0],
-              createdAt: now,
-              updatedAt: now
-            }
-          ];
+    // Never recreate or force "Everyday" back when deleted!
+    const nextAccounts = settings.accounts.filter((a) => a.id !== accountId);
 
     const nextActiveId =
       settings.activeAccountId === accountId
-        ? nextAccounts[0].id
+        ? nextAccounts[0]?.id || 'all'
         : settings.activeAccountId;
 
     const nextSettings: AppSettings = {
@@ -405,12 +425,34 @@ export const App: React.FC = () => {
       return d.toISOString().slice(0, 10);
     };
 
-    const targetAccId =
+    let currentAccounts = settings.accounts;
+    let targetAccId =
       settings.activeAccountId !== 'all'
         ? settings.activeAccountId
-        : settings.accounts[0]?.id || 'everyday';
+        : currentAccounts[0]?.id || '';
+
+    if (currentAccounts.length === 0 || !targetAccId) {
+      const created: AccountGroup = {
+        id: 'sample-group',
+        name: 'Shared Expenses',
+        emoji: '🏠',
+        createdAt: now,
+        updatedAt: now
+      };
+      currentAccounts = [created];
+      targetAccId = created.id;
+      const nextSettings: AppSettings = {
+        ...settings,
+        accounts: currentAccounts,
+        accountsUpdatedAt: now,
+        activeAccountId: created.id
+      };
+      setSettings(nextSettings);
+      saveSettings(nextSettings);
+    }
+
     const targetAccName =
-      settings.accounts.find((a) => a.id === targetAccId)?.name || 'Everyday';
+      currentAccounts.find((a) => a.id === targetAccId)?.name || 'Shared Expenses';
 
     const cur = settings.baseCurrency;
     const demo: Expense[] = [

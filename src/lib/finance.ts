@@ -471,9 +471,11 @@ export function parseCsvImport(
       ? targetAccountId
       : settings.activeAccountId !== 'all'
         ? settings.activeAccountId
-        : settings.accounts[0]?.id || 'everyday';
+        : settings.accounts[0]?.id || 'default';
   const fallbackAccountName =
-    settings.accounts.find((a) => a.id === fallbackAccountId)?.name || 'Everyday';
+    settings.accounts.find((a) => a.id === fallbackAccountId)?.name ||
+    settings.accounts[0]?.name ||
+    'General';
 
   const results: Expense[] = [];
   const now = Date.now();
@@ -592,9 +594,9 @@ export function exportExpensesToCsv(expenses: Expense[], settings: AppSettings):
       const payerName = e.paidBy === 'userA' ? settings.userAName : settings.userBName;
       const shareB = round2(e.baseAmount - e.userAShare);
       const accName =
+        settings.accounts.find((a) => a.id === e.accountId)?.name ||
         e.accountName ||
-        settings.accounts.find((a) => a.id === (e.accountId || 'everyday'))?.name ||
-        'Everyday';
+        'General';
       return [
         e.date,
         accName,

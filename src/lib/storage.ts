@@ -1,5 +1,5 @@
 import { AccountGroup, AppSettings, Expense, PartnerId } from '../types';
-import { DEFAULT_ACCOUNTS, DEFAULT_SETTINGS } from './constants';
+import { DEFAULT_SETTINGS, INITIAL_ACCOUNTS } from './constants';
 
 const EXPENSES_STORAGE_KEY = 'splitsheet_expenses_v1';
 const SETTINGS_STORAGE_KEY = 'splitsheet_settings_v1';
@@ -86,14 +86,18 @@ export async function saveExpenses(expenses: Expense[]): Promise<void> {
   });
 }
 
-export function normalizeAccounts(accounts?: AccountGroup[]): AccountGroup[] {
-  if (!Array.isArray(accounts) || accounts.length === 0) {
-    return [...DEFAULT_ACCOUNTS];
+/**
+ * Normalizes an accounts array WITHOUT forcing any hardcoded account back if the user deleted all accounts.
+ * Only uses INITIAL_ACCOUNTS when `accounts` is undefined/null (first-time initialization).
+ */
+export function normalizeAccounts(accounts?: AccountGroup[] | null): AccountGroup[] {
+  if (!Array.isArray(accounts)) {
+    return [...INITIAL_ACCOUNTS];
   }
   const map = new Map<string, AccountGroup>();
   for (const acc of accounts) {
     if (acc && acc.id && acc.name) {
-      map.set(acc.id, {
+      map.set(String(acc.id), {
         id: String(acc.id),
         name: String(acc.name),
         emoji: String(acc.emoji || '🏠'),
@@ -102,9 +106,6 @@ export function normalizeAccounts(accounts?: AccountGroup[]): AccountGroup[] {
         isArchived: Boolean(acc.isArchived)
       });
     }
-  }
-  if (map.size === 0) {
-    return [...DEFAULT_ACCOUNTS];
   }
   return Array.from(map.values());
 }
@@ -119,7 +120,7 @@ export function loadSettings(): AppSettings {
       parsed.activeAccountId === 'all' ||
       accounts.some((a) => a.id === parsed.activeAccountId)
         ? parsed.activeAccountId
-        : accounts[0].id;
+        : accounts[0]?.id || 'all';
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
@@ -216,15 +217,18 @@ export async function syncWithGoogleSheet(
     };
   }
 
+  const fallbackAccId = settings.accounts[0]?.id || 'default';
+  const fallbackAccName = settings.accounts[0]?.name || 'General';
+
   const accountNameById = new Map<string, string>(
     settings.accounts.map((a) => [a.id, a.name])
   );
 
   const upserts = (pushAll ? localExpenses : localExpenses.filter((e) => e.dirty)).map(
     ({ dirty, ...clean }) => {
-      const accId = clean.accountId || 'everyday';
+      const accId = clean.accountId || fallbackAccId;
       const accName =
-        accountNameById.get(accId) || clean.accountName || 'Everyday';
+        accountNameById.get(accId) || clean.accountName || fallbackAccName;
       return {
         ...clean,
         accountId: accId,
@@ -272,17 +276,16 @@ export async function syncWithGoogleSheet(
       };
     }
 
-    // Resolve accounts list using timestamp comparison (so renames, icon edits, and deletions sync across devices)
     const localAccUpdatedAt = Number(settings.accountsUpdatedAt) || 1;
     const remoteAccUpdatedAt = Number(data.config?.accountsUpdatedAt) || 0;
 
     let resolvedAccounts = normalizeAccounts(settings.accounts);
-    let resolvedAccUpdatedAt = Math.max(localAccUpdatedAt, remoteAccUpdatedAt);
+    const resolvedAccUpdatedAt = Math.max(localAccUpdatedAt, remoteAccUpdatedAt);
 
     if (data.config?.accountsJson && remoteAccUpdatedAt > localAccUpdatedAt) {
       try {
         const parsedRemote = JSON.parse(data.config.accountsJson);
-        if (Array.isArray(parsedRemote) && parsedRemote.length > 0) {
+        if (Array.isArray(parsedRemote)) {
           resolvedAccounts = normalizeAccounts(parsedRemote);
         }
       } catch {
@@ -297,27 +300,25 @@ export async function syncWithGoogleSheet(
     const remoteExpenses: Expense[] = Array.isArray(data.expenses) ? data.expenses : [];
     const mergedMap = new Map<string, Expense>();
 
-    // First populate with local expenses
     for (const loc of localExpenses) {
-      const accId = loc.accountId || 'everyday';
+      const accId = loc.accountId || fallbackAccId;
       mergedMap.set(loc.id, {
         ...loc,
         accountId: accId,
-        accountName: resolvedNameById.get(accId) || loc.accountName || 'Everyday',
+        accountName: resolvedNameById.get(accId) || loc.accountName || fallbackAccName,
         dirty: false
       });
     }
 
-    // Merge remote expenses by updatedAt
     for (const rem of remoteExpenses) {
       if (!rem || !rem.id) continue;
       const existing = mergedMap.get(rem.id);
       if (!existing || (Number(rem.updatedAt) || 0) >= (Number(existing.updatedAt) || 0)) {
-        const accId = String(rem.accountId || existing?.accountId || 'everyday').trim() || 'everyday';
+        const accId = String(rem.accountId || existing?.accountId || fallbackAccId).trim() || fallbackAccId;
         const accName =
           resolvedNameById.get(accId) ||
-          String(rem.accountName || existing?.accountName || 'Everyday').trim() ||
-          'Everyday';
+          String(rem.accountName || existing?.accountName || fallbackAccName).trim() ||
+          fallbackAccName;
         mergedMap.set(rem.id, {
           ...rem,
           amount: Number(rem.amount) || 0,

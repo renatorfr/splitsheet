@@ -9,7 +9,7 @@ export interface CategoryMeta {
   barColor: string;
 }
 
-export const DEFAULT_ACCOUNTS: AccountGroup[] = [
+export const INITIAL_ACCOUNTS: AccountGroup[] = [
   {
     id: 'everyday',
     name: 'Everyday',
@@ -187,7 +187,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   currentUser: 'userA',
   baseCurrency: 'EUR',
   defaultSplitA: 50,
-  accounts: DEFAULT_ACCOUNTS,
+  accounts: INITIAL_ACCOUNTS,
   accountsUpdatedAt: 1,
   activeAccountId: 'everyday',
   scriptUrl: '',

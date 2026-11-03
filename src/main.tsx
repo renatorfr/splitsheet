@@ -3,13 +3,20 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// Register Service Worker for offline PWA support
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {
-      // Ignore service worker registration errors in restricted contexts
-    });
+// Clear any stale Service Worker caches so updates apply immediately
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister().catch(() => {});
+    }
   });
+  if ('caches' in window) {
+    caches.keys().then((keys) => {
+      for (const key of keys) {
+        caches.delete(key).catch(() => {});
+      }
+    });
+  }
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
