@@ -50,7 +50,7 @@ export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1e1b2b] via-[#221e33] to-[#2b2442] border border-[#363152] shadow-xl p-5 sm:p-6">
       {/* Top Status Row: Sync badge + Google Sheet link */}
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {isConnected ? (
             <button
               type="button"
@@ -173,30 +173,30 @@ export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
       </div>
 
       {/* Partner Paid vs Fair Share Mini Cards */}
-      <div className="grid grid-cols-3 gap-2.5 mt-5 pt-4 border-t border-[#363152]/80 text-xs">
-        <div className="rounded-xl bg-[#151320]/65 border border-[#332f4a] p-2.5">
-          <span className="text-slate-400 block">Total Spend</span>
-          <span className="text-sm sm:text-base font-bold text-white mt-0.5 block">
+      <div className="grid grid-cols-3 gap-2 sm:gap-2.5 mt-5 pt-4 border-t border-[#363152]/80 text-xs">
+        <div className="min-w-0 rounded-xl bg-[#151320]/65 border border-[#332f4a] p-2 sm:p-2.5">
+          <span className="text-slate-400 block truncate">Total Spend</span>
+          <span className="text-sm sm:text-base font-bold text-white mt-0.5 block truncate">
             {formatMoney(totalSpend, settings.baseCurrency)}
           </span>
         </div>
 
-        <div className="rounded-xl bg-[#151320]/65 border border-[#332f4a] p-2.5">
+        <div className="min-w-0 rounded-xl bg-[#151320]/65 border border-[#332f4a] p-2 sm:p-2.5">
           <span className="text-slate-400 block truncate">{settings.userAName} Paid</span>
-          <span className="text-sm sm:text-base font-bold text-[#a7f3d0] mt-0.5 block">
+          <span className="text-sm sm:text-base font-bold text-[#a7f3d0] mt-0.5 block truncate">
             {formatMoney(userAPaid, settings.baseCurrency)}
           </span>
-          <span className="text-[11px] text-slate-400 block">
+          <span className="text-[11px] text-slate-400 block truncate">
             Share: {formatMoney(userAFairShare, settings.baseCurrency)}
           </span>
         </div>
 
-        <div className="rounded-xl bg-[#151320]/65 border border-[#332f4a] p-2.5">
+        <div className="min-w-0 rounded-xl bg-[#151320]/65 border border-[#332f4a] p-2 sm:p-2.5">
           <span className="text-slate-400 block truncate">{settings.userBName} Paid</span>
-          <span className="text-sm sm:text-base font-bold text-[#fbcfe8] mt-0.5 block">
+          <span className="text-sm sm:text-base font-bold text-[#fbcfe8] mt-0.5 block truncate">
             {formatMoney(userBPaid, settings.baseCurrency)}
           </span>
-          <span className="text-[11px] text-slate-400 block">
+          <span className="text-[11px] text-slate-400 block truncate">
             Share: {formatMoney(userBFairShare, settings.baseCurrency)}
           </span>
         </div>

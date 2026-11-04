@@ -70,8 +70,8 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
   return (
     <div className="space-y-3">
       {/* Search Bar + Filter Drawer Toggle + Sort */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="relative flex-1 min-w-0">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
@@ -127,7 +127,7 @@ export const SearchFilterBar: React.FC<SearchFilterBarProps> = ({
       </div>
 
       {/* Quick Date Range Preset Pills */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar min-w-0">
         <Calendar className="w-3.5 h-3.5 text-slate-500 shrink-0 mr-1" />
         {DATE_PRESETS.map((preset) => {
           const active = filters.datePreset === preset.id;

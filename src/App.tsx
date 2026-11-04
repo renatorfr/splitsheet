@@ -559,54 +559,54 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#13111c] text-slate-100 pb-24">
+    <div className="min-h-screen w-full overflow-x-hidden bg-[#13111c] text-slate-100 pb-24">
       {/* Top Navbar */}
       <header className="sticky top-0 z-30 bg-[#13111c]/85 backdrop-blur-md border-b border-[#252236]">
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#c4b5fd] to-[#fbcfe8] flex items-center justify-center shadow-md shadow-[#c4b5fd]/15">
-              <Table2 className="w-5 h-5 text-[#181622] stroke-[2.2]" />
+        <div className="max-w-3xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl bg-gradient-to-br from-[#c4b5fd] to-[#fbcfe8] flex items-center justify-center shadow-md shadow-[#c4b5fd]/15">
+              <Table2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#181622] stroke-[2.2]" />
             </div>
-            <div>
-              <h1 className="text-base sm:text-lg font-extrabold tracking-tight text-white leading-none">
+            <div className="min-w-0">
+              <h1 className="text-sm sm:text-lg font-extrabold tracking-tight text-white leading-none truncate">
                 SplitSheet
               </h1>
-              <p className="text-[11px] text-slate-400 mt-0.5">
+              <p className="text-[11px] text-slate-400 mt-0.5 truncate">
                 {settings.userAName} &amp; {settings.userBName}
               </p>
             </div>
           </div>
 
           {/* Center Tabs */}
-          <div className="inline-flex rounded-xl bg-[#1e1b2b] p-1 border border-[#332f4a]">
+          <div className="inline-flex shrink-0 rounded-xl bg-[#1e1b2b] p-1 border border-[#332f4a]">
             <button
               type="button"
               onClick={() => setActiveTab('expenses')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                 activeTab === 'expenses'
                   ? 'bg-[#c4b5fd] text-[#181622] shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <ListFilter className="w-3.5 h-3.5" />
+              <ListFilter className="w-3.5 h-3.5 hidden sm:block shrink-0" />
               <span>Expenses</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('analytics')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
                 activeTab === 'analytics'
                   ? 'bg-[#c4b5fd] text-[#181622] shadow-sm'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <BarChart3 className="w-3.5 h-3.5" />
+              <BarChart3 className="w-3.5 h-3.5 hidden sm:block shrink-0" />
               <span>Analytics</span>
             </button>
           </div>
 
           {/* Right Quick Actions */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => setIsImportModalOpen(true)}

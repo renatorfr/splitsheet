@@ -148,9 +148,9 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
 
   return (
     <>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 min-w-0">
         {/* Scrollable Account Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar flex-1">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar flex-1 min-w-0">
           {settings.accounts.map((acc) => {
             const active = settings.activeAccountId === acc.id;
             const stats = statsByAccount.get(acc.id);
@@ -494,13 +494,13 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
                     ))}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 min-w-0">
                     <input
                       type="text"
                       maxLength={4}
                       value={newEmoji}
                       onChange={(e) => setNewEmoji(e.target.value)}
-                      className="w-12 px-2 py-2 rounded-xl bg-[#1e1b2b] border border-[#332f4a] text-center text-base text-white focus:outline-none focus:border-[#c4b5fd]"
+                      className="w-12 shrink-0 px-2 py-2 rounded-xl bg-[#1e1b2b] border border-[#332f4a] text-center text-base text-white focus:outline-none focus:border-[#c4b5fd]"
                       title="Custom emoji"
                     />
                     <input
@@ -509,7 +509,7 @@ export const AccountsBar: React.FC<AccountsBarProps> = ({
                       placeholder="e.g., Japan Trip, Apartment, Holidays…"
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
-                      className="flex-1 px-3.5 py-2 rounded-xl bg-[#1e1b2b] border border-[#332f4a] text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#c4b5fd]"
+                      className="flex-1 min-w-0 px-3.5 py-2 rounded-xl bg-[#1e1b2b] border border-[#332f4a] text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#c4b5fd]"
                     />
                     <button
                       type="submit"
