@@ -267,11 +267,64 @@ export async function syncWithGoogleSheet(
       };
     }
 
-    const data = await response.json();
-    if (!data || !data.ok) {
+    const rawText = await response.text();
+    let data: any;
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      if (
+        rawText.includes('accounts.google.com') ||
+        rawText.includes('ServiceLogin') ||
+        response.url.includes('accounts.google.com')
+      ) {
+        return {
+          ok: false,
+          error:
+            'Google returned a sign-in page instead of JSON. In Apps Script → Deploy → Manage deployments → Edit (pencil), set "Who has access" to "Anyone" and deploy a New version.',
+          expenses: localExpenses
+        };
+      }
+      if (rawText.includes('Authorization is required') || rawText.includes('permission')) {
+        return {
+          ok: false,
+          error:
+            'Google Apps Script authorization is required. Open the Apps Script editor, run setupSheet() once to grant permissions, then deploy a New version.',
+          expenses: localExpenses
+        };
+      }
+      if (rawText.includes('Script function not found')) {
+        return {
+          ok: false,
+          error:
+            'doPost() was not found in the deployed Web App. Save Code.gs and deploy a New version in Apps Script → Deploy → Manage deployments.',
+          expenses: localExpenses
+        };
+      }
+      const snippet = rawText
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 140);
       return {
         ok: false,
-        error: data?.error || 'Google Sheet returned an error.',
+        error: `Unexpected non-JSON response from Google Apps Script${snippet ? `: "${snippet}"` : '.'}`,
+        expenses: localExpenses
+      };
+    }
+
+    if (!data || !data.ok) {
+      const serverErr = String(data?.error || 'Google Sheet returned an error.');
+      if (serverErr.includes('Invalid Secret Key')) {
+        return {
+          ok: false,
+          error:
+            'Unauthorized: Secret Key mismatch. Note: if you edited SECRET_KEY in Code.gs, you must click Deploy → Manage deployments → Edit (pencil) → Version: "New version" → Deploy for the change to take effect.',
+          expenses: localExpenses
+        };
+      }
+      return {
+        ok: false,
+        error: serverErr,
         expenses: localExpenses
       };
     }
@@ -352,13 +405,28 @@ export async function syncWithGoogleSheet(
       }
     };
   } catch (err: unknown) {
-    const message =
+    if (scriptUrl.endsWith('/dev')) {
+      return {
+        ok: false,
+        error:
+          'Your URL ends with "/dev" (test URL). Please use the production "/exec" Web App URL from Deploy → Manage deployments.',
+        expenses: localExpenses
+      };
+    }
+    const rawMsg =
       err instanceof Error
         ? err.message
         : 'Network error while connecting to Google Sheet.';
+    if (/failed to fetch|networkerror|load failed/i.test(rawMsg)) {
+      return {
+        ok: false,
+        error: `${rawMsg} — Usually caused by: (1) "Who has access" in Apps Script deployment is not set to "Anyone", (2) changing Code.gs without deploying a "New version", or (3) browser shield/ad-blocker blocking script.googleusercontent.com.`,
+        expenses: localExpenses
+      };
+    }
     return {
       ok: false,
-      error: message,
+      error: rawMsg,
       expenses: localExpenses
     };
   }

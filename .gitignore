@@ -2,6 +2,7 @@ node_modules
 dist
 dist-ssr
 *.local
+mise.local.toml
 .env
 .env.*
 .DS_Store

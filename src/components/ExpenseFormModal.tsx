@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, RefreshCw, Check, ArrowRightLeft } from 'lucide-react';
 import { AppSettings, Expense, PartnerId, SplitType } from '../types';
 import { CATEGORIES, CURRENCIES } from '../lib/constants';
@@ -54,16 +54,24 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
   const [category, setCategory] = useState<string>('Groceries');
   const [notes, setNotes] = useState('');
 
+  // Keep latest settings/defaultAccountId in a ref so background syncs updating `settings`
+  // don't re-trigger form initialization and wipe user input while the modal is open.
+  const latestDefaultsRef = useRef({ settings, defaultAccountId });
+  latestDefaultsRef.current = { settings, defaultAccountId };
+
   useEffect(() => {
     if (!isOpen) return;
+
+    const { settings: curSettings, defaultAccountId: curDefaultAccountId } =
+      latestDefaultsRef.current;
 
     if (editingExpense) {
       setTitle(editingExpense.title);
       setAmountStr(String(editingExpense.amount));
-      setCurrency(editingExpense.currency || settings.baseCurrency);
+      setCurrency(editingExpense.currency || curSettings.baseCurrency);
       setExchangeRateStr(String(editingExpense.exchangeRate || 1));
       setDate(editingExpense.date || today);
-      setAccountId(editingExpense.accountId || defaultAccountId);
+      setAccountId(editingExpense.accountId || curDefaultAccountId);
       setPaidBy(editingExpense.paidBy);
       setSplitType(editingExpense.splitType);
       setCategory(editingExpense.category || 'Other');
@@ -75,10 +83,10 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
     } else if (presetSettlement) {
       setTitle('Settlement / Reimbursement');
       setAmountStr(String(round2(presetSettlement.amount)));
-      setCurrency(settings.baseCurrency);
+      setCurrency(curSettings.baseCurrency);
       setExchangeRateStr('1');
       setDate(today);
-      setAccountId(defaultAccountId);
+      setAccountId(curDefaultAccountId);
       setPaidBy(presetSettlement.paidBy);
       setSplitType('settlement');
       setCategory('Settlement');
@@ -86,18 +94,18 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
     } else {
       setTitle('');
       setAmountStr('');
-      setCurrency(settings.baseCurrency);
+      setCurrency(curSettings.baseCurrency);
       setExchangeRateStr('1');
       setDate(today);
-      setAccountId(defaultAccountId);
-      setPaidBy(settings.currentUser);
+      setAccountId(curDefaultAccountId);
+      setPaidBy(curSettings.currentUser);
       setSplitType('50-50');
-      setCustomPercentA(String(settings.defaultSplitA || 50));
+      setCustomPercentA(String(curSettings.defaultSplitA || 50));
       setCustomExactA('');
       setCategory('Groceries');
       setNotes('');
     }
-  }, [isOpen, editingExpense, presetSettlement, settings, defaultAccountId]);
+  }, [isOpen, editingExpense, presetSettlement]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -196,24 +204,35 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-[#0f0d16]/80 backdrop-blur-sm p-0 sm:p-4">
       <div className="w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-[#1e1b2b] border border-[#332f4a] shadow-2xl">
         {/* Modal Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 bg-[#1e1b2b]/95 backdrop-blur border-b border-[#332f4a]">
-          <h3 className="text-base sm:text-lg font-bold text-white">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-5 py-3.5 bg-[#1e1b2b]/95 backdrop-blur border-b border-[#332f4a]">
+          <h3 className="text-base sm:text-lg font-bold text-white truncate min-w-0">
             {editingExpense
               ? 'Edit Expense'
               : splitType === 'settlement'
                 ? 'Settle Up Balance'
                 : 'New Shared Expense'}
           </h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#2a263d] transition cursor-pointer"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="submit"
+              form="expense-form"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#c4b5fd] hover:bg-[#ddd6fe] text-[#181622] font-bold text-xs sm:text-sm shadow-lg shadow-[#c4b5fd]/20 transition cursor-pointer"
+            >
+              <Check className="w-4 h-4 stroke-[2.5]" />
+              <span>{editingExpense ? 'Save Changes' : 'Save Expense'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#2a263d] transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form id="expense-form" onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Account / Group Selector */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
@@ -634,23 +653,6 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
               onChange={(e) => setNotes(e.target.value)}
               className="w-full px-3.5 py-2 rounded-xl bg-[#151320] border border-[#332f4a] text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-[#c4b5fd]"
             />
-          </div>
-
-          {/* Submit & Cancel */}
-          <div className="flex items-center justify-end gap-2.5 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2.5 rounded-xl bg-[#2a263d] hover:bg-[#35304d] text-slate-300 text-sm font-medium transition cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2.5 rounded-xl bg-[#c4b5fd] hover:bg-[#ddd6fe] text-[#181622] font-bold text-sm shadow-lg shadow-[#c4b5fd]/20 transition cursor-pointer"
-            >
-              {editingExpense ? 'Save Changes' : 'Save Expense'}
-            </button>
           </div>
         </form>
       </div>

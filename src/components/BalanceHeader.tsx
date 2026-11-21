@@ -113,6 +113,12 @@ export const BalanceHeader: React.FC<BalanceHeaderProps> = ({
         </div>
       </div>
 
+      {syncError && (
+        <div className="mb-4 px-3.5 py-2.5 rounded-2xl bg-[#fecdd3]/10 border border-[#fecdd3]/30 text-xs text-[#fecdd3] leading-relaxed">
+          {syncError}
+        </div>
+      )}
+
       {/* Main Net Balance Banner */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
